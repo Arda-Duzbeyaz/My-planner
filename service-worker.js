@@ -1,8 +1,8 @@
 /* Change VERSION with every release that changes app files. Progress uses localStorage, never this cache. */
-const VERSION='1.0.2';
+const VERSION='1.1.2';
 const PREFIX='my-plan-app-'+encodeURIComponent(new URL(self.registration.scope).pathname)+'-';
 const CACHE=PREFIX+VERSION;
-const FILES=['./','./index.html','./styles.css','./app.js','./engine.js','./storage.js','./data.js','./manifest.webmanifest','./icon.svg','./icon-192.png','./icon-512.png','./icon-maskable.png'];
+const FILES=['./','./index.html','./styles.css','./app.js','./engine.js','./storage.js','./progress.js','./data.js','./manifest.webmanifest','./icon.svg','./icon-192.png','./icon-512.png','./icon-maskable.png'];
 self.addEventListener('install',event=>{event.waitUntil(caches.open(CACHE).then(cache=>cache.addAll(FILES)));});
 self.addEventListener('message',event=>{if(event.data?.type==='SKIP_WAITING')self.skipWaiting();});
 self.addEventListener('activate',event=>{event.waitUntil((async()=>{for(const key of await caches.keys())if(key.startsWith(PREFIX)&&key!==CACHE)await caches.delete(key);await self.clients.claim();})());});

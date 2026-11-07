@@ -1,7 +1,7 @@
 import { PLAN, dayPlan, validDate, validTime, overlap } from './engine.js';
 export const KEY='my-plan-state';
 export const SCHEMA=4;
-export function freshState(){return {schemaVersion:SCHEMA,planVersion:PLAN.version,createdAt:new Date().toISOString(),updatedAt:'',records:{},milestones:{},notes:{},overrides:{},events:[],deadlineEdits:{},customDeadlines:[],assessments:{},preferences:{theme:'dark',greggs:true,labArrival:'09:00',travelMinutes:25},ethics:{approved:false,date:'',reference:''},uclTarget:'2026-12-04',uclSubmittedAt:'',uclChecklist:{},mavenResolved:'',automation:{confirmed:false,documents:false,activatedAt:'',operationalAt:'',tasks:[]},business:{contacted:'',followups:'',responses:'',trials:'',customers:'',mrr:''},quantLog:[],labTasks:{},lastBackup:'',legacyUnmapped:[]};}
+export function freshState(){return {schemaVersion:SCHEMA,planVersion:PLAN.version,createdAt:new Date().toISOString(),updatedAt:'',records:{},milestones:{},checkpoints:{},queuedGoals:[],notes:{},overrides:{},events:[],deadlineEdits:{},customDeadlines:[],assessments:{},preferences:{theme:'dark',greggs:true,labArrival:'09:00',travelMinutes:25},ethics:{approved:false,date:'',reference:''},uclTarget:'2026-12-04',uclSubmittedAt:'',uclChecklist:{},mavenResolved:'',automation:{confirmed:false,documents:false,activatedAt:'',operationalAt:'',tasks:[]},business:{contacted:'',followups:'',responses:'',trials:'',customers:'',mrr:''},quantLog:[],labTasks:{},lastBackup:'',legacyUnmapped:[]};}
 const object=x=>!!x&&typeof x==='object'&&!Array.isArray(x);
 const mapFields=['records','milestones','notes','overrides','deadlineEdits','assessments','uclChecklist','labTasks'];
 function checkTask(t,label='Session'){if(!object(t)||typeof t.id!=='string'||t.id.length>250||typeof t.title!=='string'||t.title.length>500||!validDate(t.date)||!validTime(t.start)||!validTime(t.end)||t.start>=t.end)throw Error(label+' has an invalid title, date or time range.');}
@@ -22,6 +22,10 @@ export function validateState(data){
  if(!object(data.ethics)||(data.ethics.date&&!validDate(data.ethics.date)))throw Error('Invalid ethics status.');
  if(!object(data.business)||Object.values(data.business).some(v=>v!==''&&(!Number.isFinite(Number(v))||Number(v)<0)))throw Error('Invalid business metrics.');
  if(!Array.isArray(data.quantLog)||data.quantLog.length>10000||data.quantLog.some(q=>!object(q)||!validDate(q.date)||typeof q.topic!=='string'||!Number.isFinite(Number(q.attempted))||!Number.isFinite(Number(q.solved))||Number(q.solved)>Number(q.attempted)||Number(q.solved)<0))throw Error('Invalid quant practice log.');
+ data.checkpoints??={};data.queuedGoals??=[];
+ if(!object(data.checkpoints)||Object.keys(data.checkpoints).length>5000||!Array.isArray(data.queuedGoals)||data.queuedGoals.length>5000)throw Error('Invalid unfinished-work queue.');
+ for(const [id,c] of Object.entries(data.checkpoints)){if(!object(c)||c.id!==id||!['open','resolved'].includes(c.status)||typeof c.project!=='string'||typeof c.title!=='string'||typeof c.nextAction!=='string'||!validDate(c.originDate)||!validDate(c.eligibleDate)||!validTime(c.eligibleAfter)||!Number.isFinite(c.remainingMinutes)||c.remainingMinutes<0||!Array.isArray(c.logs)||typeof c.createdAt!=='string')throw Error('Invalid unfinished checkpoint.');checkTask(c.sourceTask);}
+ for(const g of data.queuedGoals){if(!object(g)||typeof g.id!=='string'||!['waiting','promoted','completed'].includes(g.status)||!validDate(g.originDate))throw Error('Invalid queued objective.');checkTask(g.task);}
  return data;
 }
 export function serialize(state){return JSON.stringify(state,null,2);}
@@ -31,7 +35,7 @@ export function loadState(storage=globalThis.localStorage){let warning='';const 
  return {state:freshState(),warning};}
 export function completeTask(state,task,done=true){state.records[task.id]={...(state.records[task.id]||{}),status:done?'done':'pending',snapshot:{...task},updatedAt:new Date().toISOString()};}
 export function deferTask(state,task){state.records[task.id]={status:'deferred',snapshot:{...task},updatedAt:new Date().toISOString()};}
-export function moveTask(state,task,edit){if(!validDate(edit.date)||!validTime(edit.start)||!validTime(edit.end)||edit.start>=edit.end)throw Error('Choose a valid date and start/end time.');const candidate={...task,...edit};const hits=dayPlan(edit.date,state).tasks.filter(t=>t.id!==task.id&&t.actionable&&overlap(t,candidate));if(hits.length)throw Error('That time overlaps '+hits[0].title+'. Choose another time or a suggested buffer.');state.overrides[task.id]={...state.overrides[task.id],...edit,snapshot:{...task}};if(state.records[task.id]?.status==='deferred')state.records[task.id].status='pending';return candidate;}
+export function moveTask(state,task,edit){if(!validDate(edit.date)||!validTime(edit.start)||!validTime(edit.end)||edit.start>=edit.end)throw Error('Choose a valid date and start/end time.');const candidate={...task,...edit};const hits=dayPlan(edit.date,state).tasks.filter(t=>t.id!==task.id&&t.actionable&&overlap(t,candidate));if(hits.length)throw Error('That time overlaps '+hits[0].title+'. Choose another time or a suggested buffer.');state.overrides[task.id]={...state.overrides[task.id],...edit,originDate:state.overrides?.[task.id]?.originDate||task.originDate||task.date,snapshot:{...task}};if(state.records[task.id]?.status==='deferred')state.records[task.id].status='pending';return candidate;}
 export function backup(state){return {app:'my-plan',version:SCHEMA,exportedAt:new Date().toISOString(),state};}
 export function parseBackup(text){if(text.length>15*1024*1024)throw Error('Backup is too large (maximum 15 MB).');const parsed=JSON.parse(text,(k,v)=>['__proto__','constructor','prototype'].includes(k)?undefined:v);if(!object(parsed)||!object(parsed.state))throw Error('Choose a valid planner JSON backup.');
  if(parsed.version===SCHEMA||parsed.state.schemaVersion===SCHEMA){return {state:validateState(parsed.state),report:'Current planner backup validated.'};}
@@ -50,5 +54,7 @@ export function mergeStates(current,incoming){validateState(incoming);const s=st
  // A more recent local progress change wins over an older imported copy.
  for(const [id,r] of Object.entries(current.records))if(r.updatedAt>(incoming.records[id]?.updatedAt||''))s.records[id]=r;
  for(const field of ['events','customDeadlines','quantLog']){const m=new Map(s[field].map(x=>[x.id,x]));for(const x of incoming[field])m.set(x.id,x);s[field]=[...m.values()];}
+ s.checkpoints={...s.checkpoints,...incoming.checkpoints};for(const [id,c] of Object.entries(current.checkpoints||{}))if(c.updatedAt>(incoming.checkpoints[id]?.updatedAt||''))s.checkpoints[id]=c;
+ const goals=new Map((s.queuedGoals||[]).map(g=>[g.id,g]));for(const g of incoming.queuedGoals||[])goals.set(g.id,g);s.queuedGoals=[...goals.values()];
  s.legacyUnmapped=[...s.legacyUnmapped,...incoming.legacyUnmapped||[]];return validateState(s);
 }

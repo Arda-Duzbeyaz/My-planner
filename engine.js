@@ -59,7 +59,8 @@ function objective(w,k,n,tag) {
  let title=(variants[k]||[name])[n%(variants[k]?.length||1)];
  if(w.number===1&&k==='cloud')return [{title:'Activity 6.3 · recognition container + POST /detect',detail:'Run the supplied unmodified recognition container. Test POST /detect through Swagger or the documented client and inspect the response/error contract.',success:'Container runs and your own successful and error request checks are recorded.'},{title:'Activity 6.3 · upload service → Olympus',detail:'Complete your initial Image Upload Service: accept an image, call recognition and serialise the result. Push to Olympus and verify the repository link.',success:'The upload→recognition→serialisation path works; repository link is ready for the text Dropbox.'},{title:'Capture formative feedback and next actions',detail:'Record the verbal feedback from the Wednesday lab and select the first January coursework change.',success:'Feedback saved and January implementation priorities updated.'},{title:'Apply formative feedback to the Cloud plan',detail:'Review your lab notes against the full two-service/database/QoS/security brief. Begin the next agreed change in your own work.',success:'A concrete next service milestone and your own implementation checkpoint.'}][Math.min(n,3)];
  if(tag==='feedback')return {title:'Record the lab feedback',detail:'Write the verbal feedback in your own words and pick the next Cloud action.',success:'Feedback and next implementation step saved.'};
- if(k==='ai'&&w.number<9){title='Current lab task + early chatbot progress';}
+ if(chosen){const focus=chosen.split(/[.;]/)[0].replace(/^[a-z]/,c=>c.toUpperCase());const stage=({db:['Set up','Verify','Document'],db2:['Scenario B','Scenario D','Compare','Recommend','Check'],cloud:['Build','Test','Capture evidence','Verify security','Package'],ai:['Lab task','Chatbot','Test','Document'],cog:['Run','Measure','Document','Narrate'],cogroup:['Build','Test','Integrate','Rehearse']}[k]||['Work'])[n%(({db:3,db2:5,cloud:5,ai:4,cog:4,cogroup:4})[k]||1)];title=stage+' · '+(focus.length>95?focus.slice(0,92)+'…':focus);}
+ if(k==='ai'&&w.number<9)title='Weekly lab + '+(chosen?chosen.split(/[.;]/)[0].slice(0,75):'next chatbot step');
  return {title,detail:(chosen||'Follow the current module brief and finish the next incomplete requirement yourself.')+' '+(k==='ai'?'Check the actual teaching-week sheet. Complete one short-task file (≤200 words), with the exact filename, or use the slot for the next chatbot A/B/C milestone.':'')+(n?' Session '+(n+1)+': focus on '+title.toLowerCase()+'.':''),success:k==='ai'?'One correct lab-task upload or a tested chatbot increment, with your own evidence and a clear next action.':k==='cog'?'A measured run, saved evidence or your own report/video section aligned to the current portfolio milestone.':k==='cogroup'?'A tested team contribution and a record of what you personally delivered.':k==='db'||k==='db2'?'Your own required practical evidence or report section saved within the brief’s format and page limits.':'A working checkpoint, independent checks or submission evidence from your own work.'};
 }
 function workTask(date,b,n,w) {const k=b.subject,o=objective(w,k,n,b.tag);return {id:`${date}/${k}/${n}`,date,start:b.start,end:b.end,subject:k,category:moduleFor(k),title:o.title,detail:o.detail,success:o.success,actionable:k!=='buffer',optional:false,assessment:assessmentFor(k,w.number),location:['ucl','db2','review','cloud_exam','ai_exam'].includes(k)?'Home · library optional':'Home · PC',requiresEthics:k==='fyp'&&!(w.number===1&&n===0)};}
@@ -127,6 +128,15 @@ export function rawDay(date,state) {
  if(urgent)tasks=tasks.map(t=>t.actionable&&['reach','quant'].includes(t.subject)&&!preserved(t,state)?{...t,id:t.id+'/priority-'+urgent.id,subject:urgent.category,category:moduleFor(urgent.category),title:'Deadline priority · '+urgent.title,detail:urgent.notes+' Your edited deadline is within three days. Use this session to close the next submission requirement yourself.',success:'Highest-priority missing deliverable verified and saved.',assessment:urgent.id,reallocated:true}:t);
  return tasks;
 }
+export function applyCheckpoint(task,state) {
+ if(!task.actionable||task.optional||task.submission||task.appointment||task.user||state.records?.[task.id]?.snapshot)return task;
+ const project=task.assessment||task.subject;
+ const candidates=Object.values(state.checkpoints||{}).filter(c=>c.project===project&&c.autoContinue&&c.eligibleDate<=task.date&&(task.date>c.eligibleDate||task.start>=c.eligibleAfter)&&c.sourceTask.id!==task.id&&(!c.assessment||!isFinished(state,c.assessment,task.date))&&(c.status==='open'||c.resolvedDate>task.date||c.resolvedDate===task.date&&task.start<c.resolvedTime)).sort((a,b)=>a.createdAt.localeCompare(b.createdAt)||a.id.localeCompare(b.id));
+ const c=candidates[0];if(!c)return task;
+ const fields=['id','date','start','end','subject','category','title','detail','success','assessment','requiresEthics','optional','actionable','location'];
+ const plannedObjective=Object.fromEntries(fields.filter(k=>task[k]!==undefined).map(k=>[k,task[k]]));
+ return {...task,checkpointId:c.id,plannedObjective,title:'Continue · '+c.title,detail:c.nextAction+' Estimated remaining: '+c.remainingMinutes+' minutes. The original objective for this block stays queued until you confirm it is finished.',success:'Finish the recorded checkpoint, or log the next useful step and a revised estimate. Do not mark the milestone reached merely because this block ended.',continuation:true};
+}
 export function dayPlan(date,state) {
  let tasks=rawDay(date,state),conflicts=[];
  // Keep the exact version of any interacted task, including completed historical work.
@@ -154,6 +164,7 @@ export function dayPlan(date,state) {
   const i=accepted.findIndex(t=>t.id===id);if(i>=0)conflicts.push({...accepted.splice(i,1)[0],conflictReason:'You deferred this session. Choose a new time when useful.'});
  }
  accepted=accepted.filter(t=>t.start<t.end).sort((a,b)=>a.start.localeCompare(b.start)||a.end.localeCompare(b.end));
+ accepted=accepted.map(t=>applyCheckpoint(t,state));
  accepted=accepted.map(t=>t.requiresEthics&&(!state.ethics?.approved||date<(state.ethics?.date||'0000'))?{...t,blocked:true,practicalTitle:t.title,title:'Ethics first · research planning',detail:'Practical work is blocked until supervisor ethics approval is verified on DCS. Use this time to review literature, plan the method and prepare questions. Pending milestone: '+t.title,success:'Approval status checked and permitted planning notes saved; record approval in Settings before implementation.',requiresEthics:true}:t);
  return {date,week:weekNumber(date),phase:phaseFor(date),tasks:accepted,conflicts};
 }
