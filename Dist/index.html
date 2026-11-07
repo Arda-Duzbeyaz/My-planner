@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#10191e"><meta name="description" content="A little clarity for your day. Your offline university, SchoolReach and quant planner."><meta name="color-scheme" content="dark light">
+<title>My Plan · A little clarity</title>
+<link rel="icon" type="image/svg+xml" href="./icon.svg"><link rel="apple-touch-icon" href="./icon-192.png"><link rel="manifest" href="./manifest.webmanifest"><link rel="stylesheet" href="./styles.css">
+<script type="module" src="./app.js"></script>
+</head>
+<body>
+<a href="#main" class="skip">Skip to your plan</a>
+<div class="shell">
+<aside class="sidebar"><a class="brand" href="#today" aria-label="My Plan home"><span class="brandmark">m<span>p</span><i></i></span><span>my plan<span class="brand-sub">A LITTLE CLARITY, DAILY.</span></span></a>
+<nav aria-label="Main navigation" id="nav"></nav>
+<div class="sidebar-bottom"><div class="year-label">YOUR FINAL YEAR</div><div class="year">2026 <span>—</span> 2027</div><div class="sidebar-line"></div><p>Good work.<br>Room to live.</p><span class="local-dot" id="storage-status">Saved on this device</span></div></aside>
+<div class="workspace"><header class="topbar"><span class="top-label">YOUR SPACE TO MAKE PROGRESS</span><span class="mobile-brand">my plan<span class="brand-dot"></span></span><div class="top-actions"><span id="connection" class="connection">Offline ready</span><button class="icon-button" id="theme-toggle" aria-label="Switch colour theme"></button><button class="button quiet small" id="jump-today">Today</button></div></header>
+<div id="update-banner" class="update-banner" hidden>A fresh version is ready. Your progress stays here. <button class="button small" id="apply-update">Update now</button></div>
+<div id="storage-error" class="error-banner" role="alert" hidden></div>
+<main id="main" tabindex="-1"><div class="loading">Opening your day…</div></main>
+<footer class="footer"><span>Make progress. Keep your evenings.</span><span>Europe/London · v1.0.2</span></footer></div>
+</div>
+<dialog id="modal" aria-labelledby="dialog-title"><div id="dialog-content"></div></dialog>
+<div id="toast" role="status" aria-live="polite"></div>
+<input type="file" id="import-file" accept="application/json,.json" hidden>
+<noscript>This planner needs JavaScript enabled. It runs entirely on your device.</noscript>
+</body></html>
