@@ -6,6 +6,7 @@ const inWeek=(date,start)=>date>=start&&date<=addDays(start,6);
 export function projectKey(t){return t.assessment||t.subject;}
 export function pendingCheckpoints(state,date,project=null){return Object.values(state.checkpoints||{}).filter(c=>c.status==='open'&&(!project||c.project===project)&&(!c.assessment||!isFinished(state,c.assessment,date))).sort((a,b)=>a.createdAt.localeCompare(b.createdAt)||a.id.localeCompare(b.id));}
 export const milestoneIsActionable=title=>!/^Personal:/.test(title)||/reschedule|SchoolReach|Maven|driving|application|submit/i.test(title);
+export function milestonesForWeek(number,state){const w=PLAN.weeks.find(w=>w.number===Number(number));return w?w.outcomes.map((title,index)=>({id:`w${w.number}/m${index}`,number:w.number,index,title,done:!!state.milestones?.[`w${w.number}/m${index}`]})).filter(m=>milestoneIsActionable(m.title)):[];}
 export function weekProgress(start,state){
  const schedule=weeklySummary(start,state),owned=new Map();
  for(let i=0;i<7;i++)for(const t of rawDay(addDays(start,i),state))if(required(t)&&inWeek(ownDate(t,state),start))owned.set(t.id,{...t,...state.overrides?.[t.id]});
@@ -14,7 +15,7 @@ export function weekProgress(start,state){
  for(const [id,r] of Object.entries(state.records||{}))if(r.snapshot&&required(r.snapshot)&&inWeek(ownDate(r.snapshot,state),start))owned.set(id,{...r.snapshot,...state.overrides?.[id]});
  const sessions=[...owned.values()].filter(required),sessionsDone=sessions.filter(t=>state.records?.[t.id]?.status==='done').length;
  const n=weekNumber(start),w=n?PLAN.weeks[n-1]:null;
- const milestoneTotal=w?.outcomes.filter(milestoneIsActionable).length||0,milestoneDone=w?w.outcomes.filter((title,i)=>milestoneIsActionable(title)&&state.milestones?.[`w${n}/m${i}`]).length:0;
+ const milestoneItems=n?milestonesForWeek(n,state):[],milestoneTotal=milestoneItems.length,milestoneDone=milestoneItems.filter(m=>m.done).length;
  const checkpoints=Object.values(state.checkpoints||{}).filter(c=>!c.optional&&inWeek(c.originDate,start));
  const followupDone=checkpoints.filter(c=>c.status==='resolved'||(c.assessment&&!!state.assessments?.[c.assessment])).length;
  const done=sessionsDone+milestoneDone+followupDone,total=sessions.length+milestoneTotal+checkpoints.length;

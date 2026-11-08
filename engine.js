@@ -39,11 +39,16 @@ exams:template('1000-1200:cloud_exam 1300-1500:ai_exam 1515-1715:reach','1000-12
 summer:template('1000-1200:reach 1300-1500:reach 1515-1715:quant','1000-1200:quant 1300-1500:reach 1515-1715:buffer','1000-1200:reach 1300-1500:quant 1515-1715:reach','1000-1200:quant 1300-1500:reach 1515-1715:buffer','1000-1200:reach 1300-1500:admin 1515-1615:buffer 1615-1715:review')
 };
 const allUniDone=(state,date)=>['cloud-exam','ai-exam','fyp-viva','cog-demo','fyp-report','ai-course','cog-group','cog-portfolio','cloud-course','db-tech','db-lab','fyp-rp2','fyp-rp3'].every(id=>isFinished(state,id,date));
+const deepQuantPhase=date=>['launch','foundation','cognitive','march-prep','march-start','april-build','exams'].includes(phaseFor(date)?.id);
 function baseOutcome(w,subject) {const prefixes={db:'DDE:',db2:'DDE:',cloud:'Cloud:',ai:'AI:',cog:'Cognitive:',cogroup:'Cognitive group:',fyp:'FYP:'};const list=w.outcomes.filter(x=>x.startsWith(prefixes[subject]||'~~~~'));return list.length?list:w.outcomes.filter(x=>new RegExp(subject==='cloud_exam'?'^Cloud':subject==='ai_exam'?'^AI':subject==='fyp_viva'?'^FYP':'^~~~').test(x));}
 function objective(w,k,n,tag) {
  const split=str=>{const [title,detail]=str.split('|');return {title,detail,success:detail};};
  if(k==='reach'){const base=split(PLAN.reach[w.number-1]); if(n%2===1)return {title:'Follow through on the commercial experiment',detail:base.detail+' Follow up the selected prospects or trials; compare the actual response and decide the next action.',success:'Update the outreach log with actual actions, results and the next follow-up; do not invent analytics.'};return base;}
- if(k==='quant')return split(PLAN.quant[w.number-1]);
+ if(k==='quant'){
+  const base=split(PLAN.quant[w.number-1]);
+  if(phaseFor(w.start)?.id==='holiday')return base;
+  return n%2?{title:'Apply + revisit · '+base.title,detail:'Return to this week’s topic without notes first. Explain the method and its assumptions, then work through unfamiliar variations. Revisit an older mistake and explain why the wrong approach fails. Suggested practice menu: '+base.detail+' Prioritise clear reasoning over the number of questions completed.',success:'Explain why the method applies, solve a fresh variation, and record one corrected misconception or next question.'}:{title:'Understand deeply · '+base.title,detail:'Use this uninterrupted block to understand the underlying reasoning. Derive the method from first principles, enumerate small cases, draw a tree or diagram, or check your intuition with a small simulation. Take time to work through difficult steps. Suggested practice menu: '+base.detail+' A few thoroughly understood problems are enough; the listed quantities are suggestions.',success:'Explain the underlying idea and assumptions in your own words, work through an example, and record the point to revisit in the second block.'};
+ }
  if(k==='ucl')return split(PLAN.ucl[Math.min(w.number-1,5)]);
  if(k==='review')return {title:'Close the week, clear the next step',detail:'Check the weekly milestones against actual artefacts. Review deadlines within 21 days, unfinished sessions and any blockers. Choose the next concrete action for Monday; move work only after reviewing the proposed time.',success:'Milestones are updated; important unfinished work has an explicit next slot or is intentionally deferred. Export a backup.'};
  if(k==='buffer')return {title:'Make room for the highest-value unfinished task',detail:'Review the unscheduled list and nearest deadline. Move one important task here explicitly, or keep this buffer free if the week is on track.',success:'A chosen blocker is resolved or the time stays free. This buffer does not affect your completion percentage.'};
@@ -94,12 +99,33 @@ export function rawDay(date,state) {
   // Longer chosen journeys displace the feedback-notes session rather than overlap it.
   if(travel>30)tasks=tasks.filter(t=>t.start!=='11:30');
  }
+ // Preserve a small practice floor during the six planned assessment-crunch weeks.
+ if([9,10,11,22,23,24].includes(wn)&&[1,3].includes(weekday(date))){
+  const next=tasks.find(t=>(t.actionable||t.subject==='buffer')&&t.start==='15:15'&&t.end>='15:30'&&!t.submission&&!t.appointment);
+  if(next&&!state.records?.[next.id]?.snapshot&&!state.overrides?.[next.id]){
+   next.start='15:30';tasks.push({id:date+'/quant/maintenance',date,start:'15:15',end:'15:30',subject:'quant',category:'quant',title:weekday(date)===1?'Quant Sprint · keep arithmetic sharp':'Probability · revisit one mistake',detail:weekday(date)===1?'Use 10 minutes for a timed mental-maths set, then review the slowest or incorrect answers. This is maintenance during an assessment-heavy week.':'Re-solve one probability or expected-value question from your error log, then explain the key step. Stop after 15 minutes and return to the protected coursework block.',success:'A short completed set or corrected solution, with one mistake or useful method recorded.',actionable:true,optional:false,maintenance:true,location:'Home · Quant Sprint / practice notes'});
+  }
+ }
+ // Keep the user's preferred two-hour study format on two days, using business time rather than university or rest.
+ if(deepQuantPhase(date)&&!allUniDone(state,date)){
+  tasks=tasks.map(t=>{
+   const extraDay=wn===1?2:3;
+   if(t.subject==='reach'&&weekday(date)===extraDay&&t.start==='15:15'&&t.end==='17:15'&&!preserved(t,state)&&!state.overrides?.[t.id]&&!state.notes?.[t.id])return {...releaseTask(t,'quant',w,wn===1?0:1),quantStudy:true};
+   if(wn===1&&t.subject==='quant'&&!preserved(t,state))return {...t,...objective(w,'quant',1),quantStudy:true};
+   return t;
+  });
+ }
  const ds=deadlines(state);
  // Future completion removes irrelevant preparation; the history overlay below keeps completed artefacts intact.
  tasks=tasks.flatMap(t=>{
   if(!t.actionable||preserved(t,state))return [t];
   if(t.subject==='maven'&&state.mavenResolved&&date>=state.mavenResolved)return [releaseTask(t,date<='2026-11-10'?'cloud':'db',w,1)];
-  if(t.subject==='ucl'&&state.uclSubmittedAt&&date>=state.uclSubmittedAt){const mid=timeStr(minutes(t.start)+Math.floor((minutes(t.end)-minutes(t.start))/2));return [{...releaseTask(t,'reach',w),end:mid},{...releaseTask(t,'quant',w),start:mid}];}
+  if(t.subject==='ucl'&&state.uclSubmittedAt&&date>=state.uclSubmittedAt){
+   const reachId=t.id+'/released-reach',quantId=t.id+'/released-quant';
+   const legacyUsed=[reachId,quantId].some(id=>state.records?.[id]||state.overrides?.[id]||state.notes?.[id]);
+   if(deepQuantPhase(date)&&!legacyUsed)return [releaseTask(t,'reach',w)];
+   const mid=timeStr(minutes(t.start)+Math.floor((minutes(t.end)-minutes(t.start))/2));return [{...releaseTask(t,'reach',w),end:mid},{...releaseTask(t,'quant',w),start:mid}];
+  }
   if(t.assessment&&isFinished(state,t.assessment,date)){
    let k=t.subject==='cloud_viva'?'cog':t.subject==='fyp'?'fyp_viva':t.subject==='db'?'cloud':t.subject==='db2'?'fyp':t.subject==='cog'?'cogroup':t.subject==='ai'?'ai_exam':t.subject==='cogroup'?'fyp':t.subject==='cloud'?'cloud_viva':t.subject==='fyp_viva'?'reach':t.subject==='ai_exam'?'quant':t.subject==='cloud_exam'?'reach':'buffer';
    if(isFinished(state,assessmentFor(k,wn),date))k='buffer';return [releaseTask(t,k,w)];
