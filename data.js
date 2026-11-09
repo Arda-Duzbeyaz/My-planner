@@ -1,5 +1,5 @@
 export const PLAN = {
-  "version": "1.0.0",
+  "version": "1.2.1",
   "start": "2026-11-07",
   "weekStart": "2026-11-09",
   "end": "2027-07-04",
@@ -763,7 +763,7 @@ export const PLAN = {
     },
     {
       "id": "maven",
-      "category": "quant",
+      "category": "quant_app",
       "title": "Maven personal assessment expiry",
       "date": null,
       "time": null,

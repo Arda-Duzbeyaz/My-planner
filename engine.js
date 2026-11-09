@@ -1,7 +1,7 @@
 import { PLAN } from './data.js';
 export { PLAN };
-export const LABELS={fyp:'Final-Year Project',db:'Database Engineering',db2:'Database · technical report',cloud:'Cloud Computing',ai:'Artificial Intelligence',cog:'Cognitive portfolio',cogroup:'Cognitive group',reach:'SchoolReach',quant:'Quant practice',ucl:'UCL application',review:'Weekly review',buffer:'Flexible buffer',admin:'Personal admin',maven:'Maven assessment',cloud_viva:'Cloud viva',cloud_exam:'Cloud exam',ai_exam:'AI exam',fyp_viva:'FYP viva',cog_demo:'Cognitive demo',auto:'Automation sprint',life:'Life',free:'Your time'};
-export const SUBJECT_MODULE={db2:'db',cogroup:'cog',cloud_viva:'cloud',cloud_exam:'cloud',ai_exam:'ai',fyp_viva:'fyp',cog_demo:'cog'};
+export const LABELS={fyp:'Final-Year Project',db:'Database Engineering',db2:'Database Engineering',cloud:'Service-Centric Cloud Computing',ai:'Artificial Intelligence',cog:'Cognitive Computing',cogroup:'Cognitive Computing',reach:'SchoolReach',quant:'Quant Preparation',quant_app:'Quant Applications',ucl:'UCL Application',review:'Weekly review',buffer:'Flexible buffer',admin:'Personal admin',maven:'Quant Applications',cloud_viva:'Service-Centric Cloud Computing',cloud_exam:'Service-Centric Cloud Computing',ai_exam:'Artificial Intelligence',fyp_viva:'Final-Year Project',cog_demo:'Cognitive Computing',auto:'Automation sprint',life:'Life',free:'Your time'};
+export const SUBJECT_MODULE={db2:'db',cogroup:'cog',cloud_viva:'cloud',cloud_exam:'cloud',ai_exam:'ai',fyp_viva:'fyp',cog_demo:'cog',maven:'quant_app'};
 export const addDays=(d,n)=>new Date(Date.parse(d+'T12:00:00Z')+n*86400000).toISOString().slice(0,10);
 export const daysBetween=(a,b)=>Math.round((Date.parse(a+'T12:00:00Z')-Date.parse(b+'T12:00:00Z'))/86400000);
 export const weekday=d=>(new Date(d+'T12:00:00Z').getUTCDay()+6)%7;
@@ -16,10 +16,10 @@ export const phaseFor=d=>PLAN.phases.find(p=>{const n=weekNumber(d);return n>=p.
 export const moduleFor=k=>SUBJECT_MODULE[k]||k;
 export const weekFor=d=>PLAN.weeks[(weekNumber(d)||1)-1];
 export const overlap=(a,b)=>a.start<b.end&&b.start<a.end;
-export function deadlines(state) {return [...PLAN.deadlines,...(state.customDeadlines||[])].map(x=>({...x,...state.deadlineEdits?.[x.id],complete:!!state.assessments?.[x.id]})).sort((a,b)=>(a.date||'9999').localeCompare(b.date||'9999')||a.id.localeCompare(b.id));}
+export function deadlines(state) {return [...PLAN.deadlines,...(state.customDeadlines||[])].map(x=>({...x,...state.deadlineEdits?.[x.id],complete:isFinished(state,x.id,'9999-12-31')})).sort((a,b)=>(a.date||'9999').localeCompare(b.date||'9999')||a.id.localeCompare(b.id));}
 export function upcoming(state,date,count=3) {return deadlines(state).filter(x=>!x.complete&&x.date&&x.date>=date).slice(0,count);}
 export function assessmentFor(k,w) {return ({db:'db-lab',db2:'db-tech',cloud:w===1?'cloud-formative':'cloud-course',cog:'cog-portfolio',cogroup:'cog-group',ai:'ai-course',fyp:'fyp-report',cloud_exam:'cloud-exam',ai_exam:'ai-exam',cloud_viva:'cloud-viva',fyp_viva:'fyp-viva',cog_demo:'cog-demo',ucl:'ucl',maven:'maven'})[k];}
-export function isFinished(state,id,date) {const a=state.assessments?.[id];return !!a&&date>=(typeof a==='string'?a:a.date||'0000');}
+export function isFinished(state,id,date) {const a=state.assessments?.[id]||(id==='ucl'?state.uclSubmittedAt:id==='maven'?state.mavenResolved:null);return !!a&&date>=(typeof a==='string'?a:a.date||'0000');}
 function T(start,end,subject,tag=''){return {start,end,subject,tag};}
 const template=(...rows)=>rows.map(row=>row.split(' ').map(b=>{const [span,s,tag]=b.split(':');const [start,end]=span.split('-').map(t=>t.slice(0,2)+':'+t.slice(2));return T(start,end,s,tag||'');}));
 const schedules={
@@ -36,167 +36,531 @@ cognitive:template('1000-1200:cog 1300-1500:cog 1515-1715:cloud_viva','1000-1200
 'april-final':template('1000-1200:ai 1300-1500:cogroup 1515-1715:fyp','1000-1200:ai 1300-1500:cogroup 1515-1715:ai','1000-1200:ai 1300-1500:cogroup 1515-1715:fyp','1000-1200:ai 1300-1500:cogroup 1515-1615:buffer 1615-1715:review','1000-1100:ai 1100-1200:cogroup 1300-1500:fyp 1515-1715:fyp'),
 'fyp-final':template('1000-1200:fyp 1300-1500:fyp 1515-1715:fyp','1000-1200:fyp 1300-1500:fyp 1515-1715:fyp','1000-1200:fyp 1300-1500:fyp 1515-1715:fyp','1000-1200:fyp 1300-1500:fyp 1515-1715:fyp','1000-1200:fyp 1300-1500:fyp_viva 1515-1615:reach 1615-1715:review'),
 exams:template('1000-1200:cloud_exam 1300-1500:ai_exam 1515-1715:reach','1000-1200:ai_exam 1300-1500:cloud_exam 1515-1715:quant','1000-1200:cloud_exam 1300-1500:ai_exam 1515-1715:fyp_viva','1000-1200:ai_exam 1300-1500:cloud_exam 1515-1715:reach','1000-1200:buffer 1300-1500:fyp_viva 1515-1615:reach 1615-1715:review'),
-summer:template('1000-1200:reach 1300-1500:reach 1515-1715:quant','1000-1200:quant 1300-1500:reach 1515-1715:buffer','1000-1200:reach 1300-1500:quant 1515-1715:reach','1000-1200:quant 1300-1500:reach 1515-1715:buffer','1000-1200:reach 1300-1500:admin 1515-1615:buffer 1615-1715:review')
+summer:template('1000-1200:quant 1300-1500:reach 1515-1715:reach','1000-1200:quant 1300-1500:reach 1515-1615:quant_app','1000-1200:quant 1300-1500:reach 1515-1715:quant','1000-1200:reach 1300-1500:quant 1515-1715:quant_app','1000-1200:quant 1300-1500:reach 1515-1615:quant_app')
 };
-const allUniDone=(state,date)=>['cloud-exam','ai-exam','fyp-viva','cog-demo','fyp-report','ai-course','cog-group','cog-portfolio','cloud-course','db-tech','db-lab','fyp-rp2','fyp-rp3'].every(id=>isFinished(state,id,date));
-const deepQuantPhase=date=>['launch','foundation','cognitive','march-prep','march-start','april-build','exams'].includes(phaseFor(date)?.id);
-function baseOutcome(w,subject) {const prefixes={db:'DDE:',db2:'DDE:',cloud:'Cloud:',ai:'AI:',cog:'Cognitive:',cogroup:'Cognitive group:',fyp:'FYP:'};const list=w.outcomes.filter(x=>x.startsWith(prefixes[subject]||'~~~~'));return list.length?list:w.outcomes.filter(x=>new RegExp(subject==='cloud_exam'?'^Cloud':subject==='ai_exam'?'^AI':subject==='fyp_viva'?'^FYP':'^~~~').test(x));}
-function objective(w,k,n,tag) {
- const split=str=>{const [title,detail]=str.split('|');return {title,detail,success:detail};};
- if(k==='reach'){const base=split(PLAN.reach[w.number-1]); if(n%2===1)return {title:'Follow through on the commercial experiment',detail:base.detail+' Follow up the selected prospects or trials; compare the actual response and decide the next action.',success:'Update the outreach log with actual actions, results and the next follow-up; do not invent analytics.'};return base;}
- if(k==='quant'){
-  const base=split(PLAN.quant[w.number-1]);
-  if(phaseFor(w.start)?.id==='holiday')return base;
-  return n%2?{title:'Apply + revisit · '+base.title,detail:'Return to this week’s topic without notes first. Explain the method and its assumptions, then work through unfamiliar variations. Revisit an older mistake and explain why the wrong approach fails. Suggested practice menu: '+base.detail+' Prioritise clear reasoning over the number of questions completed.',success:'Explain why the method applies, solve a fresh variation, and record one corrected misconception or next question.'}:{title:'Understand deeply · '+base.title,detail:'Use this uninterrupted block to understand the underlying reasoning. Derive the method from first principles, enumerate small cases, draw a tree or diagram, or check your intuition with a small simulation. Take time to work through difficult steps. Suggested practice menu: '+base.detail+' A few thoroughly understood problems are enough; the listed quantities are suggestions.',success:'Explain the underlying idea and assumptions in your own words, work through an example, and record the point to revisit in the second block.'};
- }
- if(k==='ucl')return split(PLAN.ucl[Math.min(w.number-1,5)]);
- if(k==='review')return {title:'Close the week, clear the next step',detail:'Check the weekly milestones against actual artefacts. Review deadlines within 21 days, unfinished sessions and any blockers. Choose the next concrete action for Monday; move work only after reviewing the proposed time.',success:'Milestones are updated; important unfinished work has an explicit next slot or is intentionally deferred. Export a backup.'};
- if(k==='buffer')return {title:'Make room for the highest-value unfinished task',detail:'Review the unscheduled list and nearest deadline. Move one important task here explicitly, or keep this buffer free if the week is on track.',success:'A chosen blocker is resolved or the time stays free. This buffer does not affect your completion percentage.'};
- if(k==='admin')return {title:'Review applications and the next career step',detail:'Check actual postgraduate/application correspondence, outstanding documents and any driving admin. Choose one useful next step.',success:'One concrete application or personal admin action recorded.'};
- if(k==='maven')return {title:'Verify your own Maven invitation, then complete if accessible',detail:'Open your invitation received 29 September. Check your personal expiry and whether the link still works; 9 November is only your brother’s date. Take the assessment if accessible and you are ready, otherwise record its actual status.',success:'Actual expiry/status recorded and assessment completed if available. Mark Maven resolved in Settings when done or inaccessible.'};
- if(k==='cloud_viva')return {title:'Rehearse the Cloud viva without notes',detail:'Confirm your allocated slot (25 Jan–5 Feb window has conflicting source dates). Practise a ≤15-minute demonstration and questions on your own service boundaries, recognition integration, QoS evidence and security.',success:'Run a timed rehearsal and list the two weakest explanations; add the real appointment when allocated.'};
- if(k==='fyp_viva')return {title:n%2?'Practise your research defence':'Rehearse the FYP demonstration',detail:'Confirm your allocated in-person slot after 23 April. Explain your own question, GP/NSGA-II design, leakage safeguards, repeated comparisons, results and limitations. Use your own report and artefacts.',success:'One timed rehearsal with a short list of answers to improve. Mark the viva complete only after attending.'};
- if(k.endsWith('_exam')){const cloud=k==='cloud_exam';return {title:(n%2?'Timed questions · ':'Recall and weak topics · ')+(cloud?'Cloud architecture':'AI methods'),detail:(cloud?'Practise closed-book SOA/REST, microservices, scaling, security and QoS scenario answers.':'Practise NLP, search/optimisation, neural computing and advanced AI worked questions.')+' '+(n%2?'Attempt a timed set, mark it using available teaching material, then revisit mistakes.':'Use active recall, work through two weak examples and explain your reasoning aloud.')+' Check the actual exam date in NOW.',success:'A marked practice set or recall sheet; record the weakest topic for the next session.'};}
- if(k==='fyp'&&w.number<=24){const row=PLAN.fyp[w.number-1];const stages=['Build or investigate the defined component yourself, following your agreed method.','Verify the current component with independent cases before using it downstream.','Record the design, evidence, limitations and next step in your own project log.'];let title=row[n%row.length];if(n>=row.length)title=['Check evidence and chapter coherence','Revise the next incomplete dissertation section','Audit source package and reproducibility'][n%3]+' · '+title;return {title,detail:title+'. '+stages[n%3],success:n%3===0?'A working, reproducible checkpoint or a precise documented result from your own work.':n%3===1?'Checks and observations saved; unresolved issues are explicit.':'Own project notes or dissertation section updated, with evidence and sources.'};}
- const out=baseOutcome(w,k),chosen=out.length?out[n%out.length].replace(/^[^:]+:\s*/,''):'';
- const name=LABELS[k];
- const variants={db:['Set up and run the required practical','Capture and verify your own practical evidence','Write the relevant report section yourself'],db2:['Analyse Scenario B requirements yourself','Analyse Scenario D requirements yourself','Compare all four databases using your own evidence','Write recommendations and a critical trade-off yourself','Verify four-page report, references and separate AI form'],cloud:['Implement the next service requirement yourself','Test normal and failure behaviour','Capture deployment and QoS evidence','Verify security controls and service integration','Review packaging and viva evidence'],ai:['Complete the current short lab task','Progress the next chatbot component','Test the chatbot on your own actual examples','Update documentation and demo evidence'],cog:['Run and measure the next Nav2/OctoMap activity','Capture mapping evidence and explain results','Write your own portfolio section','Prepare your own narrated demonstration'],cogroup:['Build the agreed maze navigation component','Test changed layouts and unexpected conditions','Record individual contributions and team integration','Rehearse the demo and refine your ≤6-slide deck']};
- let title=(variants[k]||[name])[n%(variants[k]?.length||1)];
- if(w.number===1&&k==='cloud')return [{title:'Activity 6.3 · recognition container + POST /detect',detail:'Run the supplied unmodified recognition container. Test POST /detect through Swagger or the documented client and inspect the response/error contract.',success:'Container runs and your own successful and error request checks are recorded.'},{title:'Activity 6.3 · upload service → Olympus',detail:'Complete your initial Image Upload Service: accept an image, call recognition and serialise the result. Push to Olympus and verify the repository link.',success:'The upload→recognition→serialisation path works; repository link is ready for the text Dropbox.'},{title:'Capture formative feedback and next actions',detail:'Record the verbal feedback from the Wednesday lab and select the first January coursework change.',success:'Feedback saved and January implementation priorities updated.'},{title:'Apply formative feedback to the Cloud plan',detail:'Review your lab notes against the full two-service/database/QoS/security brief. Begin the next agreed change in your own work.',success:'A concrete next service milestone and your own implementation checkpoint.'}][Math.min(n,3)];
- if(tag==='feedback')return {title:'Record the lab feedback',detail:'Write the verbal feedback in your own words and pick the next Cloud action.',success:'Feedback and next implementation step saved.'};
- if(chosen){const focus=chosen.split(/[.;]/)[0].replace(/^[a-z]/,c=>c.toUpperCase());const stage=({db:['Set up','Verify','Document'],db2:['Scenario B','Scenario D','Compare','Recommend','Check'],cloud:['Build','Test','Capture evidence','Verify security','Package'],ai:['Lab task','Chatbot','Test','Document'],cog:['Run','Measure','Document','Narrate'],cogroup:['Build','Test','Integrate','Rehearse']}[k]||['Work'])[n%(({db:3,db2:5,cloud:5,ai:4,cog:4,cogroup:4})[k]||1)];title=stage+' · '+(focus.length>95?focus.slice(0,92)+'…':focus);}
- if(k==='ai'&&w.number<9)title='Weekly lab + '+(chosen?chosen.split(/[.;]/)[0].slice(0,75):'next chatbot step');
- return {title,detail:(chosen||'Follow the current module brief and finish the next incomplete requirement yourself.')+' '+(k==='ai'?'Check the actual teaching-week sheet. Complete one short-task file (≤200 words), with the exact filename, or use the slot for the next chatbot A/B/C milestone.':'')+(n?' Session '+(n+1)+': focus on '+title.toLowerCase()+'.':''),success:k==='ai'?'One correct lab-task upload or a tested chatbot increment, with your own evidence and a clear next action.':k==='cog'?'A measured run, saved evidence or your own report/video section aligned to the current portfolio milestone.':k==='cogroup'?'A tested team contribution and a record of what you personally delivered.':k==='db'||k==='db2'?'Your own required practical evidence or report section saved within the brief’s format and page limits.':'A working checkpoint, independent checks or submission evidence from your own work.'};
-}
-function workTask(date,b,n,w) {const k=b.subject,o=objective(w,k,n,b.tag);return {id:`${date}/${k}/${n}`,date,start:b.start,end:b.end,subject:k,category:moduleFor(k),title:o.title,detail:o.detail,success:o.success,actionable:k!=='buffer',optional:false,assessment:assessmentFor(k,w.number),location:['ucl','db2','review','cloud_exam','ai_exam'].includes(k)?'Home · library optional':'Home · PC',requiresEthics:k==='fyp'&&!(w.number===1&&n===0)};}
 function life(date,start,end,title,detail,slug,subject='life'){return {id:`${date}/life/${slug}`,date,start,end,title,detail,subject,category:'life',actionable:false,optional:false,location:'Your choice'};}
 function routine(date,state,last='17:15') {const greggs=[0,2,4].includes(weekday(date))&&state.preferences?.greggs!==false;let arr=[life(date,'09:15','10:00',greggs?'Morning light + breakfast':'Breakfast + a little daylight',greggs?'Get dressed, take a walk and pick up Greggs if you fancy it. Home breakfast is always fine.':'Breakfast at home, get ready and take a 10–15-minute walk.','morning'),life(date,'12:00','13:00','Lunch. Step outside.','Eat, then take a 15–20-minute walk away from the screen.','lunch')];if(last>'15:00')arr.push(life(date,'15:00','15:15','Pause + reset','Water, stretch, fresh air. Leave the desk for a moment.','break'));arr.push(life(date,last,'23:59','Evening, yours.','Cook, see people, play music, relax. Optional extra sessions are always your choice.','evening','free'));return arr;}
-function weekend(date) {if(weekday(date)===5)return [life(date,'10:00','11:00','A slow start','Breakfast at your own pace.','morning'),life(date,'11:00','13:00','Groceries + errands','Pick up meal essentials; get outside and see people. Timing is flexible.','groceries'),life(date,'13:00','23:59','Room for life','Friends, family, hobbies and relaxation.','free','free')];return [life(date,'10:00','12:00','Sunday at your pace','Breakfast, fresh air and a relaxed start.','morning'),life(date,'12:00','18:00','Your day','Leave room for friends, family and whatever you enjoy.','free','free'),{id:`${date}/review/prep`,date,start:'18:00',end:'18:20',subject:'review',category:'review',title:'Set up a calm Monday',detail:'Check the coming week and deadlines. Pick the first concrete task and prepare breakfast essentials.',success:'You know your first action for Monday.',actionable:true,optional:false,location:'Home'},life(date,'18:20','23:59','Switch off','A free evening and a reasonable night.','evening','free')];}
-function prestart(date) {if(date==='2026-11-07')return [life(date,'10:00','11:00','An easy Saturday start','Breakfast, get ready and take the day at your pace.','morning'),{id:date+'/maven/verify',date,start:'11:00',end:'11:20',subject:'maven',category:'quant',title:'Check your Maven assessment link',detail:'Open your own 29 September invitation and check access and expiry. Your brother’s 9 November date is unconfirmed for you.',success:'Actual access and expiry recorded in Settings.',actionable:true}, {id:date+'/admin/driving',date,start:'11:20',end:'11:40',subject:'admin',category:'admin',title:'Reschedule the 11 December driving test',detail:'Check a suitable replacement date and update your booking. Record the replacement test in Settings.',success:'Replacement date booked or a specific next admin step recorded.',actionable:true}, {id:date+'/admin/automation-confirm',date,start:'11:40',end:'12:00',subject:'admin',category:'admin',title:'Confirm the automation arrangement',detail:'Ask your brother to confirm agreement and send sample invoices, payment forms and the current workflow. Activate the optional setup sprint only after requirements arrive.',success:'Agreement requested and document checklist sent. No income is assumed.',actionable:true},life(date,'12:00','14:00','Groceries, errands + lunch','Flexible shopping with your brother or friend, then lunch.','groceries'),life(date,'14:00','23:59','The rest is yours','Social time, food, hobbies and relaxation.','free','free')];return [life(date,'09:45','10:30','Breakfast + fresh air','A short exceptional prep day before the formative.','morning'),{id:date+'/maven/complete',date,start:'10:30',end:'12:00',subject:'maven',category:'quant',title:'Maven · practise and complete if accessible',detail:'Check your actual invitation first; complete if accessible. Mark resolved if already done or inaccessible.',success:'Assessment status is resolved.',actionable:true},life(date,'12:00','13:00','Lunch + a walk','Leave your room and eat.','lunch'),{id:date+'/cloud/recognition',date,start:'13:00',end:'15:00',subject:'cloud',category:'cloud',title:'Activity 6.3 · recognition + upload starter',detail:'Run the supplied recognition container, test POST /detect and start the Image Upload Service integration and response serialisation.',success:'Your own working container/endpoint and upload checkpoint.',assessment:'cloud-formative',actionable:true},life(date,'15:00','15:15','Take a break','Water and fresh air.','break'),{id:date+'/cloud/repository',date,start:'15:15',end:'16:15',subject:'cloud',category:'cloud',title:'Prepare the Olympus repository',detail:'Push your own starter work, test the link and list anything to finish on Monday.',success:'Repository link and Monday checklist ready.',actionable:true,assessment:'cloud-formative'},life(date,'16:15','18:00','A lighter evening','Relax after the exceptional prep sessions.','free','free'),{...weekend(date)[2]},life(date,'18:20','23:59','Rest and recharge','Tomorrow has a clear first step.','evening','free')];}
-function submissionTask(date,d,start='10:00',end='11:00') {return {id:`deadline/${d.id}/verify`,date,start,end,subject:d.category,category:moduleFor(d.category),title:'Submit + verify · '+d.title,detail:d.notes+' '+(d.time?`Official deadline ${d.time} UK. Finish this check before the deadline; save the receipt.`:'Published date only; time unspecified. Verify the DCS review and supervisor outcome.'),success:'Correct files/forms are submitted and the receipt or DCS outcome is saved. Mark this assessment complete in its deadline details.',actionable:true,optional:false,assessment:d.id,submission:true,location:'Home · submission portal'};}
-const defaultSlots={'cloud-formative':['10:00','11:00'],'db-lab':['10:00','11:00'],'fyp-rp2':['10:00','11:00'],'cloud-course':['10:00','11:00'],'cog-portfolio':['10:00','11:00'],'db-tech':['10:00','11:00'],'fyp-rp3':['11:00','12:00'],'ai-course':['10:00','11:00'],'cog-group':['11:00','12:00'],'fyp-report':['10:00','12:00']};
-function releaseTask(t,k,w,n=0) {const o=objective(w,k,n);return {...t,id:t.id+'/released-'+k,subject:k,category:moduleFor(k),title:o.title,detail:o.detail,success:o.success,assessment:assessmentFor(k,w.number),actionable:k!=='buffer',requiresEthics:k==='fyp',reallocated:true};}
-function preserved(t,state) {return !!state.records?.[t.id]?.snapshot;}
-export function rawDay(date,state) {
- const wn=weekNumber(date),w=weekFor(date);let tasks=[];
- if(date==='2026-11-07'||date==='2026-11-08')tasks=prestart(date);
- else if(!wn)return [];
- else if(weekday(date)>4)tasks=weekend(date);
- else {
-  const phase=phaseFor(date);let rows=schedules[(wn>=25&&allUniDone(state,date))?'summer':phase.id];let counts={};for(let i=0;i<weekday(date);i++)for(const b of rows[i])counts[b.subject]=(counts[b.subject]||0)+1;
-  tasks=rows[weekday(date)].map(b=>{const n=counts[b.subject]||0;counts[b.subject]=n+1;return workTask(date,b,n,w);});
-  // Date-specific exceptions have distinct tasks and preserve the free morning after the lab.
-  if(date==='2026-11-10')tasks[0]={...tasks[0],title:'Final repository check + Cloud formative submission',detail:'Smoke-test Activity 6.3, verify the Olympus URL and paste it into the text Dropbox. Save the receipt before 14:30.',success:'Correct Olympus URL submitted and confirmation saved.',assessment:'cloud-formative',submission:true};
-  if(date==='2027-02-12')tasks=tasks.filter(t=>!['10:00','13:00'].includes(t.start)).concat(workTask(date,T('10:00','11:00','cog'),0,w),workTask(date,T('11:00','12:00','db2'),0,w),workTask(date,T('13:00','15:00','fyp'),1,w));
-  let last=phase.id==='holiday'?tasks.reduce((v,t)=>t.end>v?t.end:v,'12:00'):'17:15';
-  if(['2026-12-25','2027-01-01'].includes(date))return [...routine(date,state,'13:00').filter(t=>t.subject==='life'),life(date,'13:00','23:59','Holiday · enjoy your day','No compulsory work. Save the review for another day if needed.','holiday','free')];
-  tasks.push(...routine(date,state,last));
- }
- if(date==='2026-11-11') {
-  const arrival=state.preferences?.labArrival||'09:00',travel=Number(state.preferences?.travelMinutes||25),a=minutes(arrival);
-  tasks=tasks.filter(t=>t.start>='11:30');
-  tasks.push(life(date,timeStr(a-travel-30),timeStr(a-travel),'Breakfast + get ready','Earlier start for this one-off feedback lab.','early'),life(date,timeStr(a-travel),arrival,'Travel to campus','Allow your chosen travel time; Lime ~£2 return, bus ~£6 return. Adjust if needed.','travel'),{id:'2026-11-11/cloud/feedback-lab',date,start:arrival,end:'11:00',subject:'cloud',category:'cloud',title:'Cloud formative feedback lab',detail:'Attendance window 09:00–11:00. Arrive later only if the lecturer permits it. Ask for verbal feedback on your Activity 6.3 submission.',success:'Verbal feedback received and next actions captured.',actionable:true,appointment:true,location:'NTU campus',window:'09:00–11:00'},life(date,'11:00',timeStr(660+travel),'Travel home','Return to your home PC.','return'));
-  // Longer chosen journeys displace the feedback-notes session rather than overlap it.
-  if(travel>30)tasks=tasks.filter(t=>t.start!=='11:30');
- }
- // Preserve a small practice floor during the six planned assessment-crunch weeks.
- if([9,10,11,22,23,24].includes(wn)&&[1,3].includes(weekday(date))){
-  const next=tasks.find(t=>(t.actionable||t.subject==='buffer')&&t.start==='15:15'&&t.end>='15:30'&&!t.submission&&!t.appointment);
-  if(next&&!state.records?.[next.id]?.snapshot&&!state.overrides?.[next.id]){
-   next.start='15:30';tasks.push({id:date+'/quant/maintenance',date,start:'15:15',end:'15:30',subject:'quant',category:'quant',title:weekday(date)===1?'Quant Sprint · keep arithmetic sharp':'Probability · revisit one mistake',detail:weekday(date)===1?'Use 10 minutes for a timed mental-maths set, then review the slowest or incorrect answers. This is maintenance during an assessment-heavy week.':'Re-solve one probability or expected-value question from your error log, then explain the key step. Stop after 15 minutes and return to the protected coursework block.',success:'A short completed set or corrected solution, with one mistake or useful method recorded.',actionable:true,optional:false,maintenance:true,location:'Home · Quant Sprint / practice notes'});
+function weekend(date) {
+  if (weekday(date) === 5) return [
+    life(date,'10:00','11:00','A slow start','Breakfast at your own pace.','morning'),
+    life(date,'11:00','13:00','Groceries + errands','Pick up meal essentials and get outside.','groceries'),
+    life(date,'13:00','23:59','Room for life','Friends, family, hobbies and relaxation.','free','free')
+  ];
+  return [
+    life(date,'10:00','12:00','Sunday at your pace','Breakfast, fresh air and a relaxed start.','morning'),
+    life(date,'12:00','23:59','Your day','Time for friends, family and whatever you enjoy.','free','free')
+  ];
+}
+function prestart(date) {if(date==='2026-11-07')return [life(date,'10:00','11:00','An easy Saturday start','Breakfast, get ready and take the day at your pace.','morning'),{id:date+'/maven/verify',date,start:'11:00',end:'11:20',subject:'maven',category:'quant',title:'Check your Maven assessment link',detail:'Open your own 29 September invitation and check access and expiry. Your brother’s 9 November date is unconfirmed for you.',success:'Actual access and expiry recorded in Settings.',actionable:true}, {id:date+'/admin/driving',date,start:'11:20',end:'11:40',subject:'admin',category:'admin',title:'Reschedule the 11 December driving test',detail:'Check a suitable replacement date and update your booking. Record the replacement test in Settings.',success:'Replacement date booked or a specific next admin step recorded.',actionable:true}, {id:date+'/admin/automation-confirm',date,start:'11:40',end:'12:00',subject:'admin',category:'admin',title:'Confirm the automation arrangement',detail:'Ask your brother to confirm agreement and send sample invoices, payment forms and the current workflow. Activate the optional setup sprint only after requirements arrive.',success:'Agreement requested and document checklist sent. No income is assumed.',actionable:true},life(date,'12:00','14:00','Groceries, errands + lunch','Flexible shopping with your brother or friend, then lunch.','groceries'),life(date,'14:00','23:59','The rest is yours','Social time, food, hobbies and relaxation.','free','free')];return [life(date,'09:45','10:30','Breakfast + fresh air','A short exceptional prep day before the formative.','morning'),{id:date+'/maven/complete',date,start:'10:30',end:'12:00',subject:'maven',category:'quant',title:'Maven · practise and complete if accessible',detail:'Check your actual invitation first; complete if accessible. Mark resolved if already done or inaccessible.',success:'Assessment status is resolved.',actionable:true},life(date,'12:00','13:00','Lunch + a walk','Leave your room and eat.','lunch'),{id:date+'/cloud/recognition',date,start:'13:00',end:'15:00',subject:'cloud',category:'cloud',title:'Activity 6.3 · recognition + upload starter',detail:'Run the supplied recognition container, test POST /detect and start the Image Upload Service integration and response serialisation.',success:'Your own working container/endpoint and upload checkpoint.',assessment:'cloud-formative',actionable:true},life(date,'15:00','15:15','Take a break','Water and fresh air.','break'),{id:date+'/cloud/repository',date,start:'15:15',end:'16:15',subject:'cloud',category:'cloud',title:'Prepare the Olympus repository',detail:'Push your own starter work, test the link and list anything to finish on Monday.',success:'Repository link and Monday checklist ready.',actionable:true,assessment:'cloud-formative'},life(date,'16:15','23:59','A lighter evening','Relax after the exceptional prep sessions.','free','free')];}
+// Assessment identity stays separate from the label shown on a work block.
+const academicSubjects = {
+  'cloud-formative': 'cloud', 'cloud-course': 'cloud', 'cloud-viva': 'cloud_viva', 'cloud-exam': 'cloud_exam',
+  'db-lab': 'db', 'db-tech': 'db2', 'cog-portfolio': 'cog', 'cog-group': 'cogroup', 'cog-demo': 'cog_demo',
+  'ai-course': 'ai', 'ai-exam': 'ai_exam', 'fyp-rp2': 'fyp', 'fyp-rp3': 'fyp', 'fyp-report': 'fyp', 'fyp-viva': 'fyp_viva'
+};
+const academicModules = new Set(['ai', 'cog', 'cloud', 'db', 'fyp']);
+const completionRequirements = Object.keys(academicSubjects).filter(id => id !== 'cloud-formative');
+const ordinaryPhases = new Set(['launch', 'foundation', 'cognitive', 'march-prep', 'march-start', 'april-build', 'exams']);
+const protectedHolidays = new Set(['2026-12-25', '2027-01-01']);
+const duration = task => minutes(task.end) - minutes(task.start);
+export const isRetiredSession = task => ['review', 'buffer'].includes(task?.subject);
+const finishedTask = (task, state) => !!task.assessment && isFinished(state, task.assessment, task.date);
+const scheduleRevision = 2;
+
+function touched(task, state) {
+  if (state.overrides?.[task.id]) return true;
+  const record = state.records?.[task.id];
+  if (record?.snapshot?.scheduleRevision === scheduleRevision) return false;
+  if (record?.status !== 'done' && finishedTask(task, state)) return false;
+  return !!(record || state.notes?.[task.id]);
+}
+
+const canReallocate = (task, state) => task.actionable && !task.appointment && !task.submission && !task.saved && !touched(task, state);
+
+function workTask(date, block, occurrence, week) {
+  const {subject, start, end} = block;
+  const assessment = subject === 'cloud' && date > '2026-11-10'
+    ? 'cloud-course' : assessmentFor(subject, week);
+  return {
+    id: `${date}/${subject}/${occurrence}`, date, start, end, subject, category: moduleFor(subject),
+    title: LABELS[subject], detail: '', success: '', actionable: subject !== 'buffer', optional: false,
+    assessment, location: ['ucl', 'db2', 'cloud_exam', 'ai_exam'].includes(subject) ? 'Home · library optional' : 'Home · PC',
+    requiresEthics: subject === 'fyp' && !(week === 1 && occurrence === 0), scheduleRevision
+  };
+}
+
+function reallocate(task, subject, assessment = assessmentFor(subject, weekNumber(task.date))) {
+  const suffix = task.subject === subject && assessment ? assessment : subject;
+  return {
+    ...task, id: `${task.id}/released-${suffix}`, subject, category: moduleFor(subject),
+    title: LABELS[subject], detail: '', success: '', assessment, actionable: true,
+    requiresEthics: subject === 'fyp' && assessment === 'fyp-report', reallocated: true
+  };
+}
+
+function takeMinutes(task, length, replacement) {
+  if (duration(task) <= length) return [replacement];
+  const split = timeStr(minutes(task.start) + length);
+  return [{...replacement, end: split}, {...task, start: split}];
+}
+
+function phaseBalance(date, tasks, phase, week, state, byId) {
+  const day = weekday(date);
+  if (phase === 'summer') {
+    const need = uclNeed(date, state, byId);
+    return tasks.flatMap(task => need && day === 4 && task.start === '13:00' && canReallocate(task, state)
+      ? takeMinutes(task, 60, reallocate(task, 'ucl', need)) : [task]);
   }
- }
- // Keep the user's preferred two-hour study format on two days, using business time rather than university or rest.
- if(deepQuantPhase(date)&&!allUniDone(state,date)){
-  tasks=tasks.map(t=>{
-   const extraDay=wn===1?2:3;
-   if(t.subject==='reach'&&weekday(date)===extraDay&&t.start==='15:15'&&t.end==='17:15'&&!preserved(t,state)&&!state.overrides?.[t.id]&&!state.notes?.[t.id])return {...releaseTask(t,'quant',w,wn===1?0:1),quantStudy:true};
-   if(wn===1&&t.subject==='quant'&&!preserved(t,state))return {...t,...objective(w,'quant',1),quantStudy:true};
-   return t;
+  if (ordinaryPhases.has(phase)) {
+    const extraDay = week === 1 ? 2 : 3;
+    tasks = tasks.map(task => {
+      if (!canReallocate(task, state)) return task;
+      if (day === extraDay && task.subject === 'reach' && task.start === '15:15' && duration(task) === 120) {
+        return {...reallocate(task, 'quant'), quantStudy: true};
+      }
+      if (week === 1 && day === 1 && task.subject === 'maven') return reallocate(task, 'db');
+      return task;
+    });
+  }
+  const schoolReachDay = {launch: 3, foundation: 2}[phase];
+  if (day === schoolReachDay) {
+    const cloudDue = byId.get('cloud-course')?.date;
+    if (cloudDue && daysBetween(cloudDue, date) > 21 && !isFinished(state, 'cloud-course', date)) {
+      // Split a distant coursework block while keeping its original ID for saved progress.
+      tasks = tasks.flatMap(task => task.subject === 'cloud' && task.start === '13:00' && canReallocate(task, state)
+        ? takeMinutes(task, 60, reallocate(task, 'reach')) : [task]);
+    }
+  }
+  if (phase === 'holiday' && day === 1) {
+    const business = tasks.find(task => task.subject === 'reach');
+    const quant = tasks.find(task => task.subject === 'quant');
+    if (business && quant && canReallocate(business, state) && canReallocate(quant, state)) {
+      tasks = tasks.filter(task => task !== business).map(task => task === quant ? {...task, start: business.start} : task);
+    }
+  }
+  if (phase === 'holiday' && day === 0) {
+    tasks = tasks.flatMap(task => task.subject === 'cloud' && canReallocate(task, state)
+      ? takeMinutes(task, 60, reallocate(task, 'reach')) : [task]);
+  }
+  if ((day === 3 && (week === 9 || week === 10)) || (day === 1 && week === 23)) {
+    tasks = tasks.map(task => task.start === '15:15' && canReallocate(task, state) ? reallocate(task, 'quant') : task);
+  }
+  const databaseDue = byId.get('db-lab')?.date;
+  if (phase === 'foundation' && day === 3 && databaseDue && !isFinished(state, 'db-lab', date)) {
+    const lead = daysBetween(databaseDue, date);
+    if (lead > 0 && lead <= 35) {
+      tasks = tasks.flatMap(task => task.subject === 'cloud' && canReallocate(task, state)
+        ? takeMinutes(task, lead <= 28 ? 120 : 60, reallocate(task, 'db')) : [task]);
+    }
+  }
+  const portfolioDue = byId.get('cog-portfolio')?.date;
+  if (phase === 'cognitive' && day === 2 && portfolioDue && daysBetween(portfolioDue, date) >= 14 && !isFinished(state, 'db-tech', date)) {
+    tasks = tasks.map(task => task.subject === 'cog' && task.start === '10:00' && canReallocate(task, state)
+      ? reallocate(task, 'db2') : task);
+  }
+  const technicalDue = byId.get('db-tech')?.date;
+  if (phase === 'march-prep' && day === 3 && technicalDue && !isFinished(state, 'db-tech', date)) {
+    const lead = daysBetween(technicalDue, date);
+    if (lead > 0 && lead <= 8) {
+      tasks = tasks.map(task => task.subject === 'fyp' && task.start === '10:00' && canReallocate(task, state)
+        ? reallocate(task, 'db2') : task);
+    }
+  }
+  if (phase === 'exams' && day === 4) {
+    // Use the former free morning only for outstanding viva or demonstration preparation.
+    const remaining = ['cog-demo', 'cloud-viva'].filter(id => !isFinished(state, id, date));
+    tasks = tasks.flatMap(task => task.subject !== 'buffer' ? [task] : remaining.map((id, index) => ({
+      ...reallocate(task, academicSubjects[id], id), start: timeStr(600 + 60 * index), end: timeStr(660 + 60 * index)
+    })));
+  }
+  const review = tasks.find(task => task.subject === 'review');
+  if (review) {
+    const preceding = tasks.find(task => task.subject === 'reach' && task.end === review.start);
+    if (preceding && phase !== 'exams' && canReallocate(preceding, state) && duration(preceding) + duration(review) <= 120) {
+      tasks = tasks.map(task => task === preceding ? {...task, end: review.end} : task).filter(task => task !== review);
+    } else {
+      const priority = {'db-final': 'db', january: 'cloud', 'cloud-final': 'cloud', 'april-final': 'ai', 'fyp-final': 'fyp'}[phase] || 'quant_app';
+      const replacement = reallocate(review, priority);
+      if (tasks.some(task => task.subject === 'buffer' && task.end === review.start)) {
+        replacement.start = timeStr(minutes(review.start) - duration(review));
+        replacement.end = review.start;
+        if (phase === 'april-build') tasks.push(reallocate(review, 'reach'));
+      }
+      tasks = tasks.map(task => task === review ? replacement : task);
+    }
+  }
+  return tasks.filter(task => !isRetiredSession(task));
+}
+
+function uclNeed(date, state, byId) {
+  if (!isFinished(state, 'ucl', date)) return 'ucl';
+  const funding = byId.get('funding');
+  if (funding?.date && funding.date >= date && daysBetween(funding.date, date) <= 21 && !isFinished(state, 'funding', date)) return 'funding';
+  return null;
+}
+
+function beforeDeadline(task, deadline) {
+  return task.date < deadline.date || task.date === deadline.date && (!deadline.time || task.end <= deadline.time);
+}
+
+function submissionTask(date, deadline, start, end) {
+  return {
+    id: `deadline/${deadline.id}/verify`, date, start, end, subject: deadline.category, category: moduleFor(deadline.category),
+    title: 'Submit + verify · ' + deadline.title,
+    detail: deadline.time ? `Due at ${deadline.time} UK time. The assessment record lists the submission requirements.` : 'The assessment record has the review or submission details.',
+    success: '', actionable: true, optional: false, assessment: deadline.id, submission: true, location: 'Home · submission portal', scheduleRevision
+  };
+}
+const defaultSlots = {
+  'cloud-formative': ['10:00','11:00'], 'db-lab': ['10:00','11:00'], 'fyp-rp2': ['10:00','11:00'],
+  'cloud-course': ['10:00','11:00'], 'cog-portfolio': ['10:00','11:00'], 'db-tech': ['10:00','11:00'],
+  'fyp-rp3': ['11:00','12:00'], 'ai-course': ['10:00','11:00'], 'cog-group': ['11:00','12:00'],
+  'fyp-report': ['10:00','12:00']
+};
+
+function subtractInterval(task, occupied) {
+  const pieces = [];
+  if (task.start < occupied.start) pieces.push({...task, end: occupied.start});
+  if (task.end > occupied.end) pieces.push({...task, id: pieces.length ? `${task.id}/after-check` : task.id, start: occupied.end});
+  return pieces;
+}
+
+function addSubmissionChecks(tasks, date, state, deadlineRows) {
+  const checks = [];
+  for (const deadline of deadlineRows) {
+    if (deadline.date !== date || !defaultSlots[deadline.id] || isFinished(state, deadline.id, date)) continue;
+    let [start, end] = defaultSlots[deadline.id];
+    if (deadline.time && end > deadline.time) {
+      const due = minutes(deadline.time);
+      if (due < 15) continue; // The date remains visible even if there is no usable submission slot that day.
+      const finish = Math.max(15, due - 15);
+      [start, end] = [timeStr(Math.max(0, finish - 45)), timeStr(finish)];
+    }
+    const check = submissionTask(date, deadline, start, end);
+    const saved = state.overrides?.[check.id]?.snapshot || state.records?.[check.id]?.snapshot;
+    if (saved && saved.date !== date) check.id += '/' + date;
+    // Preserve both checks on shared deadline dates. Earlier edited times can use an earlier free interval.
+    if (checks.some(other => overlap(other, check))) {
+      const latest = minutes(deadline.time || '17:15');
+      let found = false;
+      for (let cursor = Math.min(minutes(start), latest - duration(check)); cursor >= 0; cursor -= 15) {
+        const candidate = {...check, start: timeStr(cursor), end: timeStr(cursor + duration(check))};
+        if (!checks.some(other => overlap(other, candidate))) {
+          Object.assign(check, candidate);
+          found = true;
+          break;
+        }
+      }
+      if (!found) continue;
+    }
+    checks.push(check);
+    const exact = tasks.find(task => task.start === check.start && task.end === check.end && task.assessment === deadline.id);
+    if (exact) {
+      Object.assign(exact, check, {id: exact.id});
+      continue;
+    }
+    if (PLAN.deadlines.some(original => original.id === deadline.id && original.date === date)) {
+      tasks = tasks.flatMap(task => overlap(task, check) ? subtractInterval(task, check) : [task]);
+    }
+    tasks.push(check);
+  }
+  return tasks;
+}
+
+function baseDay(date, state, deadlineRows, byId) {
+  const week = weekNumber(date);
+  if (!week) return date >= PLAN.start && date < PLAN.weekStart ? prestart(date) : [];
+  if (weekday(date) > 4) return weekend(date);
+  if (protectedHolidays.has(date)) {
+    return [...routine(date, state, '13:00').filter(task => task.subject === 'life'),
+      life(date, '13:00', '23:59', 'Holiday · enjoy your day', 'A free holiday afternoon and evening.', 'holiday', 'free')];
+  }
+  const phase = completionRequirements.every(id => isFinished(state, id, date)) ? 'summer' : phaseFor(date).id;
+  const rows = schedules[phase];
+  const counts = {};
+  for (const row of rows.slice(0, weekday(date))) for (const block of row) counts[block.subject] = (counts[block.subject] || 0) + 1;
+  let tasks = rows[weekday(date)].map(block => {
+    const index = counts[block.subject] || 0;
+    counts[block.subject] = index + 1;
+    return workTask(date, block, index, week);
   });
- }
- const ds=deadlines(state);
- // Future completion removes irrelevant preparation; the history overlay below keeps completed artefacts intact.
- tasks=tasks.flatMap(t=>{
-  if(!t.actionable||preserved(t,state))return [t];
-  if(t.subject==='maven'&&state.mavenResolved&&date>=state.mavenResolved)return [releaseTask(t,date<='2026-11-10'?'cloud':'db',w,1)];
-  if(t.subject==='ucl'&&state.uclSubmittedAt&&date>=state.uclSubmittedAt){
-   const reachId=t.id+'/released-reach',quantId=t.id+'/released-quant';
-   const legacyUsed=[reachId,quantId].some(id=>state.records?.[id]||state.overrides?.[id]||state.notes?.[id]);
-   if(deepQuantPhase(date)&&!legacyUsed)return [releaseTask(t,'reach',w)];
-   const mid=timeStr(minutes(t.start)+Math.floor((minutes(t.end)-minutes(t.start))/2));return [{...releaseTask(t,'reach',w),end:mid},{...releaseTask(t,'quant',w),start:mid}];
+  if (date === '2027-02-12' && phase !== 'summer') {
+    tasks = tasks.filter(task => !['10:00', '13:00'].includes(task.start)).concat(
+      workTask(date, T('10:00', '11:00', 'cog'), 0, week),
+      workTask(date, T('11:00', '12:00', 'db2'), 0, week),
+      workTask(date, T('13:00', '15:00', 'fyp'), 1, week)
+    );
   }
-  if(t.assessment&&isFinished(state,t.assessment,date)){
-   let k=t.subject==='cloud_viva'?'cog':t.subject==='fyp'?'fyp_viva':t.subject==='db'?'cloud':t.subject==='db2'?'fyp':t.subject==='cog'?'cogroup':t.subject==='ai'?'ai_exam':t.subject==='cogroup'?'fyp':t.subject==='cloud'?'cloud_viva':t.subject==='fyp_viva'?'reach':t.subject==='ai_exam'?'quant':t.subject==='cloud_exam'?'reach':'buffer';
-   if(isFinished(state,assessmentFor(k,wn),date))k='buffer';return [releaseTask(t,k,w)];
+  tasks = phaseBalance(date, tasks, phase, week, state, byId);
+  const last = tasks.reduce((end, task) => task.end > end ? task.end : end, '13:00');
+  tasks.push(...routine(date, state, last));
+  if (date === '2026-11-11') {
+    const arrival = state.preferences?.labArrival || '09:00';
+    const travel = Number(state.preferences?.travelMinutes || 25);
+    const start = minutes(arrival);
+    tasks = tasks.filter(task => task.start >= '11:30' && (travel <= 30 || task.start !== '11:30'));
+    tasks.push(
+      life(date, timeStr(start - travel - 30), timeStr(start - travel), 'Breakfast + get ready', 'Earlier start for the feedback lab.', 'early'),
+      life(date, timeStr(start - travel), arrival, 'Travel to campus', 'Your saved campus travel time.', 'travel'),
+      {id: date + '/cloud/feedback-lab', date, start: arrival, end: '11:00', subject: 'cloud', category: 'cloud',
+        title: 'Cloud formative feedback lab', detail: 'Attendance window 09:00–11:00. Confirm any later arrival with the lecturer.',
+        success: '', actionable: true, appointment: true, location: 'NTU campus', window: '09:00–11:00'},
+      life(date, '11:00', timeStr(660 + travel), 'Travel home', 'Your saved return travel time.', 'return')
+    );
   }
-  return [t];
- });
- // Insert deadline checks on the actual configured day; no unknown exam dates become fabricated appointments.
- const occupied=[];
- for(const d of ds.filter(d=>d.date===date&&defaultSlots[d.id]&&!isFinished(state,d.id,date))) {
-  let [start,end]=defaultSlots[d.id];if(d.time&&end>d.time){const e=minutes(d.time)-15;start=timeStr(Math.max(0,e-45));end=timeStr(e);}
-  const s=submissionTask(date,d,start,end);
-  if(occupied.some(x=>overlap(x,s))){s.start=timeStr(minutes(s.start)+60);s.end=timeStr(minutes(s.end)+60);}
-  occupied.push(s);
-  const exact=tasks.find(t=>t.start===s.start&&t.end===s.end&&t.assessment===d.id);
-  if(exact){Object.assign(exact,s,{id:exact.id});}
-  else { // Planned deadline insertions split ordinary windows; changed dates surface displaced work below.
-   const original=PLAN.deadlines.find(x=>x.id===d.id)?.date;
-   if(original===date){tasks=tasks.flatMap(t=>{if(!overlap(t,s))return[t];if(t.actionable&&t.start<=s.start&&t.end>=s.end){const rest=[];if(t.start<s.start)rest.push({...t,end:s.start});if(t.end>s.end)rest.push({...t,id:t.id+'/after-check',start:s.end});return rest;}return [];});}
-   tasks.push(s);
+  return addSubmissionChecks(tasks, date, state, deadlineRows);
+}
+
+function savedPlacements(state) {
+  const byDate = new Map();
+  const manualIds = new Set([...(state.events || []), ...(state.automation?.tasks || [])].map(task => task.id));
+  const ids = new Set([...Object.keys(state.records || {}), ...Object.keys(state.overrides || {})]);
+  for (const id of ids) {
+    const record = state.records?.[id];
+    const edit = state.overrides?.[id];
+    const snapshot = edit?.snapshot || record?.snapshot;
+    if (!snapshot || manualIds.has(id) || isRetiredSession(snapshot)) continue;
+    if (record?.status !== 'done' && !edit && finishedTask(snapshot, state)) continue;
+    const sameDay = byDate.get(snapshot.date) || [];
+    sameDay.push({...snapshot, saved: true, preserveBeforeAllocation: !!edit || snapshot.scheduleRevision !== scheduleRevision});
+    byDate.set(snapshot.date, sameDay);
   }
- }
- // A moved deadline makes its former submission check an ordinary milestone session.
- for(const t of tasks)if(t.submission&&ds.find(d=>d.id===t.assessment)?.date!==date){const o=objective(w,t.subject,0);Object.assign(t,o,{submission:false});}
- // Imminent edited deadlines use flexible/business time explicitly, leaving university hours and rest intact.
- const urgent=ds.find(d=>d.date&&d.date>date&&daysBetween(d.date,date)<=3&&state.deadlineEdits?.[d.id]?.date&&!d.complete&&defaultSlots[d.id]);
- if(urgent)tasks=tasks.map(t=>t.actionable&&['reach','quant'].includes(t.subject)&&!preserved(t,state)?{...t,id:t.id+'/priority-'+urgent.id,subject:urgent.category,category:moduleFor(urgent.category),title:'Deadline priority · '+urgent.title,detail:urgent.notes+' Your edited deadline is within three days. Use this session to close the next submission requirement yourself.',success:'Highest-priority missing deliverable verified and saved.',assessment:urgent.id,reallocated:true}:t);
- return tasks;
+  return byDate;
 }
-export function applyCheckpoint(task,state) {
- if(!task.actionable||task.optional||task.submission||task.appointment||task.user||state.records?.[task.id]?.snapshot)return task;
- const project=task.assessment||task.subject;
- const candidates=Object.values(state.checkpoints||{}).filter(c=>c.project===project&&c.autoContinue&&c.eligibleDate<=task.date&&(task.date>c.eligibleDate||task.start>=c.eligibleAfter)&&c.sourceTask.id!==task.id&&(!c.assessment||!isFinished(state,c.assessment,task.date))&&(c.status==='open'||c.resolvedDate>task.date||c.resolvedDate===task.date&&task.start<c.resolvedTime)).sort((a,b)=>a.createdAt.localeCompare(b.createdAt)||a.id.localeCompare(b.id));
- const c=candidates[0];if(!c)return task;
- const fields=['id','date','start','end','subject','category','title','detail','success','assessment','requiresEthics','optional','actionable','location'];
- const plannedObjective=Object.fromEntries(fields.filter(k=>task[k]!==undefined).map(k=>[k,task[k]]));
- return {...task,checkpointId:c.id,plannedObjective,title:'Continue · '+c.title,detail:c.nextAction+' Estimated remaining: '+c.remainingMinutes+' minutes. The original objective for this block stays queued until you confirm it is finished.',success:'Finish the recorded checkpoint, or log the next useful step and a revised estimate. Do not mark the milestone reached merely because this block ended.',continuation:true};
+
+function placeSavedTasks(tasks, saved) {
+  for (const snapshot of saved || []) {
+    // A saved interval owns its old time. Unused portions can still be planned.
+    tasks = tasks.flatMap(task => {
+      if (task.id === snapshot.id) return [];
+      if (!task.actionable || task.saved || task.appointment || task.submission || !overlap(task, snapshot)) return [task];
+      return subtractInterval(task, snapshot).filter(piece => duration(piece) >= (piece.subject === 'quant' ? 120 : 30));
+    });
+    tasks.push(snapshot);
+  }
+  return tasks;
 }
-export function dayPlan(date,state) {
- let tasks=rawDay(date,state),conflicts=[];
- // Keep the exact version of any interacted task, including completed historical work.
- for(const [id,r] of Object.entries(state.records||{}))if(r.snapshot?.date===date&&!tasks.some(t=>t.id===id)&&!(state.events||[]).some(e=>e.id===id)&&!(state.automation?.tasks||[]).some(e=>e.id===id))tasks.push({...r.snapshot});
- tasks=tasks.map(t=>state.records?.[t.id]?.snapshot?{...state.records[t.id].snapshot}:t);
- // User moves preserve the same semantic ID. Moved-away sessions do not remain at their old time.
- tasks=tasks.filter(t=>!state.overrides?.[t.id]?.date||state.overrides[t.id].date===date);
- for(const [id,o] of Object.entries(state.overrides||{}))if(o.date===date&&!tasks.some(t=>t.id===id)&&o.snapshot)tasks.push({...o.snapshot,id});
- tasks=tasks.map(t=>({...t,...state.overrides?.[t.id]}));
- let events=(state.events||[]).filter(t=>t.date===date).map(t=>({...t,subject:t.subject||'admin',category:t.category||'admin',appointment:t.type==='appointment',actionable:t.type!=='lifestyle',optional:!!t.optional,user:true}));
- if(state.automation?.activatedAt&&date>=state.automation.activatedAt){for(const t of state.automation.tasks||[])if(t.date===date&&(!state.automation.operationalAt||date<state.automation.operationalAt||state.records?.[t.id]?.status==='done'))events.push({...t,subject:'auto',category:'admin',actionable:true,user:true,requiresAgreement:true});}
- // Appointments/custom moves win; an overlap goes to the visible unscheduled list, never vanishes or completes itself.
- const priority=tasks.filter(t=>state.overrides?.[t.id]?.date||state.records?.[t.id]?.status==='done').concat(events);
- const ordinary=tasks.filter(t=>!state.overrides?.[t.id]?.date&&state.records?.[t.id]?.status!=='done');
- let accepted=[];
- function add(t,hard){
-  const hit=accepted.filter(x=>overlap(x,t));
-  if(!hit.length){accepted.push(t);return;}
-  if(!t.actionable&&!hard){let pieces=[t];for(const h of hit)pieces=pieces.flatMap(p=>!overlap(p,h)?[p]:[{...p,end:h.start},{...p,start:h.end}].filter(p=>p.start<p.end));accepted.push(...pieces);return;}
-  conflicts.push({...t,conflictWith:hit.map(x=>x.title).join(', '),conflictReason:'This time is occupied. Choose another slot.'});
- }
- priority.sort((a,b)=>a.start.localeCompare(b.start)||a.id.localeCompare(b.id)).forEach(t=>add(t,true));
- ordinary.sort((a,b)=>Number(!!b.submission)-Number(!!a.submission)||a.start.localeCompare(b.start)).forEach(t=>add(t,false));
- for(const [id,r] of Object.entries(state.records||{}))if(r.status==='deferred'){
-  const i=accepted.findIndex(t=>t.id===id);if(i>=0)conflicts.push({...accepted.splice(i,1)[0],conflictReason:'You deferred this session. Choose a new time when useful.'});
- }
- accepted=accepted.filter(t=>t.start<t.end).sort((a,b)=>a.start.localeCompare(b.start)||a.end.localeCompare(b.end));
- accepted=accepted.map(t=>applyCheckpoint(t,state));
- accepted=accepted.map(t=>t.requiresEthics&&(!state.ethics?.approved||date<(state.ethics?.date||'0000'))?{...t,blocked:true,practicalTitle:t.title,title:'Ethics first · research planning',detail:'Practical work is blocked until supervisor ethics approval is verified on DCS. Use this time to review literature, plan the method and prepare questions. Pending milestone: '+t.title,success:'Approval status checked and permitted planning notes saved; record approval in Settings before implementation.',requiresEthics:true}:t);
- return {date,week:weekNumber(date),phase:phaseFor(date),tasks:accepted,conflicts};
+
+function workMinutes(tasks, matches) {
+  return tasks.reduce((total, task) => total + (task.actionable && !task.optional && matches(task) ? duration(task) : 0), 0);
 }
-export function progress(tasks,state) {const required=tasks.filter(t=>t.actionable&&!t.optional);const done=required.filter(t=>state.records?.[t.id]?.status==='done').length;return {done,total:required.length,percent:required.length?Math.round(done/required.length*100):0};}
+
+function assessmentPressure(deadline, date) {
+  if (!deadline?.date || deadline.date < date) return 0;
+  const lead = daysBetween(deadline.date, date);
+  const weighting = Number(deadline.title.match(/(\d+)%/)?.[1] || 35);
+  return weighting * (1 + Math.max(0, 28 - lead) / 14);
+}
+
+function academicTarget(deadline, start) {
+  const lead = daysBetween(deadline.date, start);
+  if (['fyp-rp2', 'fyp-rp3'].includes(deadline.id)) return 120;
+  if (deadline.id === 'cloud-formative') return 480;
+  if (deadline.id === 'fyp-report') return lead <= 7 ? 26 * 60 : 16 * 60;
+  return (lead <= 7 ? 14 : lead <= 14 ? 9 : 5) * 60;
+}
+
+function relevantAcademic(deadline) {
+  return academicSubjects[deadline.id] || (academicModules.has(deadline.category) ? deadline.category : null);
+}
+
+function deadlinePriority(deadline) {
+  return relevantAcademic(deadline) ? 0 : {ucl: 1, quant_app: 2, reach: 3}[moduleFor(deadline.category)];
+}
+
+function releaseCompletedSlots(tasks, state, deadlineRows, byId, start) {
+  const release = task => {
+    if (!canReallocate(task, state)) return false;
+    if (finishedTask(task, state)) return true;
+    const deadline = byId.get(task.assessment);
+    const original = PLAN.deadlines.find(item => item.id === task.assessment);
+    return !!(deadline?.date && original?.date && deadline.date > original.date && task.start >= '13:00'
+      && daysBetween(deadline.date, task.date) >= 28 && daysBetween(original.date, task.date) >= 0
+      && daysBetween(original.date, task.date) <= 21);
+  };
+  const retained = tasks.filter(task => !release(task));
+  const released = tasks.filter(release);
+  const studyHours = workMinutes(retained, task => academicModules.has(moduleFor(task.subject))) / 60;
+  const targets = studyHours < 12 ? {quant: 10, reach: 10, quant_app: 4} : studyHours < 19
+    ? {quant: 6, reach: 5, quant_app: 2} : {quant: 4, reach: 3, quant_app: 1};
+  for (const task of released) {
+    const academic = deadlineRows.filter(deadline => relevantAcademic(deadline) && deadline.date && beforeDeadline(task, deadline)
+      && daysBetween(deadline.date, task.date) <= 21 && !isFinished(state, deadline.id, task.date)
+      && workMinutes(retained, other => other.assessment === deadline.id && beforeDeadline(other, deadline)) < academicTarget(deadline, start))
+      .sort((a, b) => assessmentPressure(b, task.date) - assessmentPressure(a, task.date))[0];
+    if (academic) {
+      retained.push(reallocate(task, relevantAcademic(academic), academic.id));
+      continue;
+    }
+    const neededUcl = uclNeed(task.date, state, byId);
+    const uclDate = byId.get(neededUcl)?.date || (neededUcl === 'ucl' ? state.uclTarget : null);
+    if (neededUcl && uclDate >= task.date && daysBetween(uclDate, task.date) <= 14
+        && workMinutes(retained, other => other.assessment === neededUcl) < 120) {
+      retained.push(reallocate(task, 'ucl', neededUcl));
+      continue;
+    }
+    const options = ['quant_app', 'reach', 'quant'].filter(subject => subject !== 'quant' || duration(task) >= 120);
+    const target = options.find(subject => workMinutes(retained, other => moduleFor(other.subject) === subject) < targets[subject] * 60);
+    const fallback = options.includes('quant') && workMinutes(retained, other => other.subject === 'quant') < workMinutes(retained, other => other.subject === 'reach') ? 'quant' : 'reach';
+    retained.push(reallocate(task, target || fallback));
+  }
+  return retained;
+}
+
+function ensureRecruitingBlock(tasks, state, start) {
+  if (!ordinaryPhases.has(phaseFor(start)?.id) || workMinutes(tasks, task => moduleFor(task.subject) === 'quant_app') >= 60) return tasks;
+  const donor = [...tasks].reverse().find(task => task.subject === 'ai' && duration(task) >= 120 && canReallocate(task, state))
+    || [...tasks].reverse().find(task => task.subject === 'reach' && duration(task) >= 120 && canReallocate(task, state));
+  if (!donor) return tasks;
+  const split = timeStr(minutes(donor.end) - 60);
+  return tasks.flatMap(task => task === donor ? [{...task, end: split}, {...reallocate(task, 'quant_app'), start: split}] : [task]);
+}
+
+function focusChangedDeadlines(tasks, state, deadlineRows, start) {
+  const focus = deadlineRows.filter(deadline => {
+    if (!deadline.date || deadline.status !== 'confirmed' || isFinished(state, deadline.id, start)) return false;
+    const lead = daysBetween(deadline.date, start);
+    if (lead < 0 || lead > 21) return false;
+    const original = PLAN.deadlines.find(item => item.id === deadline.id);
+    return ['quant_app', 'reach'].includes(moduleFor(deadline.category))
+      || (relevantAcademic(deadline) || deadline.category === 'ucl') && deadline.date !== original?.date;
+  }).sort((a, b) => deadlinePriority(a) - deadlinePriority(b) || a.date.localeCompare(b.date));
+  for (const deadline of focus) {
+    const academic = relevantAcademic(deadline);
+    const subject = academic || moduleFor(deadline.category);
+    const recruiting = subject === 'quant_app';
+    const business = subject === 'reach';
+    const lead = daysBetween(deadline.date, start);
+    if ((recruiting || business) && lead > 14) continue;
+    const extra = academic && lead <= 7 ? 240 : lead <= 14 ? 120 : 60;
+    const matches = task => recruiting || business ? moduleFor(task.subject) === subject : task.assessment === deadline.id;
+    const existing = workMinutes(tasks, task => beforeDeadline(task, deadline) && matches(task));
+    const recruitingMinutes = workMinutes(tasks, task => moduleFor(task.subject) === 'quant_app');
+    let remaining = extra;
+    if (academic) remaining = Math.min(extra, academicTarget(deadline, start) - existing);
+    if (subject === 'ucl') remaining = Math.min(extra, 120 + extra - existing);
+    if (business) remaining = Math.min(extra, recruitingMinutes - 180);
+    if (remaining < 30) continue;
+    // Prefer business time. Urgent university work may also borrow lower-pressure coursework time.
+    const donorSubjects = business ? ['quant_app'] : ['reach'];
+    if (academic) donorSubjects.push('quant_app');
+    if (academic && moduleFor(subject) !== 'ai' && lead <= 7) donorSubjects.push('ai');
+    const donors = tasks.filter(task => canReallocate(task, state) && !task.focused && beforeDeadline(task, deadline)
+      && !isFinished(state, deadline.id, task.date) && task.assessment !== deadline.id && donorSubjects.includes(task.subject))
+      .sort((a, b) => donorSubjects.indexOf(a.subject) - donorSubjects.indexOf(b.subject) || b.date.localeCompare(a.date));
+    for (const donor of donors) {
+      if (remaining < 30) break;
+      const length = Math.min(duration(donor), remaining);
+      const replacement = {...reallocate(donor, subject, deadline.id), focused: true};
+      tasks = tasks.flatMap(task => task === donor ? takeMinutes(task, length, replacement) : [task]);
+      remaining -= length;
+    }
+  }
+  return tasks;
+}
+
+function plannedWeek(start, state) {
+  const deadlineRows = deadlines(state);
+  const byId = new Map(deadlineRows.map(deadline => [deadline.id, deadline]));
+  const saved = savedPlacements(state);
+  const dates = Array.from({length: 7}, (_, index) => addDays(start, index));
+  let tasks = dates.flatMap(date => placeSavedTasks(baseDay(date, state, deadlineRows, byId),
+    saved.get(date)?.filter(task => task.preserveBeforeAllocation)));
+  tasks = releaseCompletedSlots(tasks, state, deadlineRows, byId, start);
+  tasks = ensureRecruitingBlock(tasks, state, start);
+  tasks = focusChangedDeadlines(tasks, state, deadlineRows, start);
+  const byDate = new Map(dates.map(date => [date, []]));
+  for (const task of tasks) byDate.get(task.date).push(task);
+  for (const date of dates) {
+    byDate.set(date, placeSavedTasks(byDate.get(date), saved.get(date)?.filter(task => !task.preserveBeforeAllocation)));
+  }
+  return byDate;
+}
+
+export function rawDay(date, state) {
+  return plannedWeek(monday(date), state).get(date);
+}
+
+export function presentSession(task, state) {
+  const simple = task.actionable && !task.appointment && !task.submission && !task.user && task.subject !== 'auto'
+    && (academicModules.has(moduleFor(task.subject)) || ['quant', 'quant_app', 'reach', 'ucl'].includes(moduleFor(task.subject)));
+  const blocked = !!task.requiresEthics && (!state.ethics?.approved || task.date < (state.ethics.date || '0000'));
+  if (!simple) return {...task, blocked};
+  const {checkpointId, continuation, plannedObjective, practicalTitle, preserveBeforeAllocation, ...session} = task;
+  return {...session, title: state.overrides?.[task.id]?.title || LABELS[task.subject], detail: '', success: '', blocked};
+}
+
+export function dayPlan(date, state, planned = rawDay(date, state)) {
+  let tasks = planned.filter(task => !state.overrides?.[task.id]?.date || state.overrides[task.id].date === date);
+  for (const [id, edit] of Object.entries(state.overrides || {})) {
+    if (edit.date === date && !tasks.some(task => task.id === id) && edit.snapshot && !isRetiredSession(edit.snapshot)) {
+      tasks.push({...edit.snapshot, id});
+    }
+  }
+  tasks = tasks.map(task => ({...task, ...state.overrides?.[task.id]}));
+  const events = (state.events || []).filter(task => task.date === date).map(task => ({
+    ...task, subject: task.subject || 'admin', category: task.category || 'admin', appointment: task.type === 'appointment',
+    actionable: task.type !== 'lifestyle', optional: !!task.optional, user: true
+  }));
+  if (state.automation?.activatedAt && date >= state.automation.activatedAt) {
+    for (const task of state.automation.tasks || []) {
+      if (task.date === date && (!state.automation.operationalAt || date < state.automation.operationalAt || state.records?.[task.id]?.status === 'done')) {
+        events.push({...task, subject: 'auto', category: 'admin', actionable: true, user: true, requiresAgreement: true});
+      }
+    }
+  }
+  const priority = tasks.filter(task => state.overrides?.[task.id]?.date || state.records?.[task.id]?.status === 'done').concat(events);
+  const ordinary = tasks.filter(task => !state.overrides?.[task.id]?.date && state.records?.[task.id]?.status !== 'done');
+  const accepted = [], conflicts = [];
+  function add(task, fixed) {
+    if (state.records?.[task.id]?.status === 'deferred') {
+      conflicts.push({...task, conflictReason: 'You deferred this session. Choose another time when useful.'});
+      return;
+    }
+    const hits = accepted.filter(other => overlap(other, task));
+    if (!hits.length) {
+      accepted.push(task);
+      return;
+    }
+    if (!task.actionable && !fixed) {
+      const pieces = hits.reduce((parts, hit) => parts.flatMap(part => overlap(part, hit) ? subtractInterval(part, hit) : [part]), [task]);
+      accepted.push(...pieces);
+      return;
+    }
+    conflicts.push({...task, conflictWith: hits.map(other => other.title).join(', '), conflictReason: 'This time is occupied. Choose another slot.'});
+  }
+  priority.sort((a, b) => a.start.localeCompare(b.start) || a.id.localeCompare(b.id)).forEach(task => add(task, true));
+  ordinary.sort((a, b) => Number(!!b.submission) - Number(!!a.submission) || a.start.localeCompare(b.start)).forEach(task => add(task, false));
+  const ordered = accepted.filter(task => task.start < task.end).sort((a, b) => a.start.localeCompare(b.start) || a.end.localeCompare(b.end));
+  return {date, week: weekNumber(date), phase: phaseFor(date), tasks: ordered.map(task => presentSession(task, state)), conflicts: conflicts.map(task => presentSession(task, state))};
+}
+export function progress(tasks, state) {
+  const required = tasks.filter(task => task.actionable && !task.optional);
+  const total = required.length;
+  const done = required.filter(task => state.records?.[task.id]?.status === 'done').length;
+  const percent = !total ? 0 : done === total ? 100 : Math.min(99, Math.round(100 * done / total));
+  return {done, total, percent};
+}
 export function activeTasks(plan,now=ukNow()){if(plan.date!==now.date)return {current:null,next:null};return {current:plan.tasks.find(t=>t.start<=now.time&&t.end>now.time)||null,next:plan.tasks.find(t=>t.start>now.time)||null};}
-export function weeklySummary(start,state) {let tasks=[],conflicts=[];for(let i=0;i<7;i++){const p=dayPlan(addDays(start,i),state);tasks.push(...p.tasks);conflicts.push(...p.conflicts);}const hours={};for(const t of tasks)if(t.actionable&&!t.optional)hours[t.subject]=(hours[t.subject]||0)+(minutes(t.end)-minutes(t.start))/60;return {tasks,conflicts,hours,...progress(tasks,state)};}
+export function weeklySummary(start, state) {
+  const days = plannedWeek(start, state);
+  const planned = [...days.values()].flat();
+  const tasks = [], conflicts = [], hours = {}, moduleHours = {};
+  for (const [date, blocks] of days) {
+    const day = dayPlan(date, state, blocks);
+    tasks.push(...day.tasks);
+    conflicts.push(...day.conflicts);
+  }
+  for (const task of tasks) {
+    if (task.actionable && !task.optional) {
+      const amount = duration(task) / 60;
+      const module = moduleFor(task.subject);
+      hours[task.subject] = (hours[task.subject] || 0) + amount;
+      moduleHours[module] = (moduleHours[module] || 0) + amount;
+    }
+  }
+  return {tasks, conflicts, planned, hours, moduleHours, ...progress(tasks, state)};
+}
 export function findBuffer(task,state,fromDate) {const duration=minutes(task.end)-minutes(task.start);for(let i=0;i<21;i++){const date=addDays(fromDate,i);if(weekday(date)>4)continue;const p=dayPlan(date,state);for(const [lo,hi] of [['10:00','12:00'],['13:00','15:00'],['15:15','17:15']])for(let m=minutes(lo);m+duration<=minutes(hi);m+=15){const slot={start:timeStr(m),end:timeStr(m+duration)};if(!p.tasks.some(t=>t.id!==task.id&&t.actionable&&overlap(t,slot)))return {date,...slot};}}return null;}
 export function automationTasks(start,hours=10) {
  const stages=[['Review requirements + examples',.15],['Implement the agreed workflow',.4],['Validate realistic invoices and payment forms',.25],['Handover and reliability check',.15],['Confirm operational status',.05]];
