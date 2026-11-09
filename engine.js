@@ -108,8 +108,18 @@ function phaseBalance(date, tasks, phase, week, state, byId) {
   const day = weekday(date);
   if (phase === 'summer') {
     const need = uclNeed(date, state, byId);
-    return tasks.flatMap(task => need && day === 4 && task.start === '13:00' && canReallocate(task, state)
-      ? takeMinutes(task, 60, reallocate(task, 'ucl', need)) : [task]);
+    return tasks.flatMap(task => {
+      if (!canReallocate(task, state)) return [task];
+      if (need && day === 4 && task.start === '13:00') return takeMinutes(task, 60, reallocate(task, 'ucl', need));
+      if (task.subject !== 'quant_app') return [task];
+      // Keep the source slots so saved sessions retain their original IDs.
+      if (day === 1) return [reallocate(task, 'reach')];
+      if (day !== 3) return [task];
+      const lookahead = addDays(monday(date), 14);
+      const commitment = [...byId.values()].find(deadline => deadline.category === 'reach' && deadline.status === 'confirmed'
+        && deadline.date && deadline.date <= lookahead && beforeDeadline(task, deadline) && !isFinished(state, deadline.id, date));
+      return [commitment ? {...reallocate(task, 'reach', commitment.id), focused: true} : reallocate(task, 'quant')];
+    });
   }
   if (ordinaryPhases.has(phase)) {
     const extraDay = week === 1 ? 2 : 3;

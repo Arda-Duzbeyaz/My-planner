@@ -1,5 +1,5 @@
 export const PLAN = {
-  "version": "1.2.2",
+  "version": "1.2.3",
   "start": "2026-11-07",
   "weekStart": "2026-11-09",
   "end": "2027-07-04",
