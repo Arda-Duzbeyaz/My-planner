@@ -1,6 +1,6 @@
 import { PLAN } from './data.js';
 export { PLAN };
-export const LABELS={fyp:'Final-Year Project',db:'Database Engineering',db2:'Database Engineering',cloud:'Service-Centric Cloud Computing',ai:'Artificial Intelligence',cog:'Cognitive Computing',cogroup:'Cognitive Computing',reach:'SchoolReach',quant:'Quant Preparation',quant_app:'Quant Applications',ucl:'UCL Application',review:'Weekly review',buffer:'Flexible buffer',admin:'Personal admin',maven:'Quant Applications',cloud_viva:'Service-Centric Cloud Computing',cloud_exam:'Service-Centric Cloud Computing',ai_exam:'Artificial Intelligence',fyp_viva:'Final-Year Project',cog_demo:'Cognitive Computing',auto:'Automation sprint',life:'Life',free:'Your time'};
+export const LABELS={fyp:'Final-Year Project',db:'Database Engineering',db2:'Database Engineering',cloud:'Service-Centric Cloud Computing',ai:'Artificial Intelligence',cog:'Cognitive Computing',cogroup:'Cognitive Computing',reach:'SchoolReach',quant:'Quant Preparation',quant_app:'Quant Applications',ucl:'UCL Application',review:'Weekly review',buffer:'Flexible buffer',admin:'Personal admin',maven:'Maven assessment',cloud_viva:'Service-Centric Cloud Computing',cloud_exam:'Service-Centric Cloud Computing',ai_exam:'Artificial Intelligence',fyp_viva:'Final-Year Project',cog_demo:'Cognitive Computing',auto:'Automation sprint',life:'Life',free:'Your time'};
 export const SUBJECT_MODULE={db2:'db',cogroup:'cog',cloud_viva:'cloud',cloud_exam:'cloud',ai_exam:'ai',fyp_viva:'fyp',cog_demo:'cog',maven:'quant_app'};
 export const addDays=(d,n)=>new Date(Date.parse(d+'T12:00:00Z')+n*86400000).toISOString().slice(0,10);
 export const daysBetween=(a,b)=>Math.round((Date.parse(a+'T12:00:00Z')-Date.parse(b+'T12:00:00Z'))/86400000);
@@ -65,7 +65,7 @@ const protectedHolidays = new Set(['2026-12-25', '2027-01-01']);
 const duration = task => minutes(task.end) - minutes(task.start);
 export const isRetiredSession = task => ['review', 'buffer'].includes(task?.subject);
 const finishedTask = (task, state) => !!task.assessment && isFinished(state, task.assessment, task.date);
-const scheduleRevision = 2;
+const scheduleRevision = 3;
 
 function touched(task, state) {
   if (state.overrides?.[task.id]) return true;
@@ -182,9 +182,11 @@ function phaseBalance(date, tasks, phase, week, state, byId) {
       const priority = {'db-final': 'db', january: 'cloud', 'cloud-final': 'cloud', 'april-final': 'ai', 'fyp-final': 'fyp'}[phase] || 'quant_app';
       const replacement = reallocate(review, priority);
       if (tasks.some(task => task.subject === 'buffer' && task.end === review.start)) {
-        replacement.start = timeStr(minutes(review.start) - duration(review));
-        replacement.end = review.start;
-        if (phase === 'april-build') tasks.push(reallocate(review, 'reach'));
+        const business = phase === 'april-build' ? reallocate(review, 'reach') : null;
+        const earlier = business && !touched(business, state) && !touched(replacement, state) ? business : replacement;
+        earlier.start = timeStr(minutes(review.start) - duration(review));
+        earlier.end = review.start;
+        if (business) tasks.push(business);
       }
       tasks = tasks.map(task => task === review ? replacement : task);
     }
@@ -381,8 +383,8 @@ function releaseCompletedSlots(tasks, state, deadlineRows, byId, start) {
   const retained = tasks.filter(task => !release(task));
   const released = tasks.filter(release);
   const studyHours = workMinutes(retained, task => academicModules.has(moduleFor(task.subject))) / 60;
-  const targets = studyHours < 12 ? {quant: 10, reach: 10, quant_app: 4} : studyHours < 19
-    ? {quant: 6, reach: 5, quant_app: 2} : {quant: 4, reach: 3, quant_app: 1};
+  const targets = studyHours < 12 ? {quant: 10, reach: 10} : studyHours < 19
+    ? {quant: 6, reach: 5} : {quant: 4, reach: 3};
   for (const task of released) {
     const academic = deadlineRows.filter(deadline => relevantAcademic(deadline) && deadline.date && beforeDeadline(task, deadline)
       && daysBetween(deadline.date, task.date) <= 21 && !isFinished(state, deadline.id, task.date)
@@ -399,7 +401,7 @@ function releaseCompletedSlots(tasks, state, deadlineRows, byId, start) {
       retained.push(reallocate(task, 'ucl', neededUcl));
       continue;
     }
-    const options = ['quant_app', 'reach', 'quant'].filter(subject => subject !== 'quant' || duration(task) >= 120);
+    const options = duration(task) >= 120 ? ['reach', 'quant'] : ['reach'];
     const target = options.find(subject => workMinutes(retained, other => moduleFor(other.subject) === subject) < targets[subject] * 60);
     const fallback = options.includes('quant') && workMinutes(retained, other => other.subject === 'quant') < workMinutes(retained, other => other.subject === 'reach') ? 'quant' : 'reach';
     retained.push(reallocate(task, target || fallback));
@@ -407,10 +409,28 @@ function releaseCompletedSlots(tasks, state, deadlineRows, byId, start) {
   return retained;
 }
 
+const isQuantApplication = task => moduleFor(task.subject) === 'quant_app';
+
+function scheduleLaunchApplications(tasks, state, start) {
+  const mavenBlock = tasks.find(task => task.date === start && task.subject === 'maven' && duration(task) === 120 && canReallocate(task, state));
+  if (!mavenBlock) return tasks;
+  const hasApplications = workMinutes(tasks, task => task !== mavenBlock && isQuantApplication(task)) >= 60;
+  const fridayCognitive = hasApplications ? null : tasks.find(task => task.date === addDays(start, 4)
+    && task.subject === 'cog' && canReallocate(task, state));
+  return tasks.flatMap(task => {
+    if (task === fridayCognitive) return [reallocate(task, 'quant_app')];
+    if (task !== mavenBlock) return [task];
+    const cloud = reallocate(task, 'cloud', 'cloud-formative');
+    return fridayCognitive ? takeMinutes(reallocate(task, 'cog'), 60, cloud) : [cloud];
+  });
+}
+
 function ensureRecruitingBlock(tasks, state, start) {
-  if (!ordinaryPhases.has(phaseFor(start)?.id) || workMinutes(tasks, task => moduleFor(task.subject) === 'quant_app') >= 60) return tasks;
-  const donor = [...tasks].reverse().find(task => task.subject === 'ai' && duration(task) >= 120 && canReallocate(task, state))
-    || [...tasks].reverse().find(task => task.subject === 'reach' && duration(task) >= 120 && canReallocate(task, state));
+  if (!ordinaryPhases.has(phaseFor(start)?.id)) return tasks;
+  if (start === PLAN.weekStart) tasks = scheduleLaunchApplications(tasks, state, start);
+  if (workMinutes(tasks, isQuantApplication) >= 60) return tasks;
+  const donor = [...tasks].reverse().find(task => task.subject === 'ai'
+    && task.start === '13:00' && task.end === '15:00' && canReallocate(task, state));
   if (!donor) return tasks;
   const split = timeStr(minutes(donor.end) - 60);
   return tasks.flatMap(task => task === donor ? [{...task, end: split}, {...reallocate(task, 'quant_app'), start: split}] : [task]);
@@ -435,12 +455,13 @@ function focusChangedDeadlines(tasks, state, deadlineRows, start) {
     const extra = academic && lead <= 7 ? 240 : lead <= 14 ? 120 : 60;
     const matches = task => recruiting || business ? moduleFor(task.subject) === subject : task.assessment === deadline.id;
     const existing = workMinutes(tasks, task => beforeDeadline(task, deadline) && matches(task));
-    const recruitingMinutes = workMinutes(tasks, task => moduleFor(task.subject) === 'quant_app');
     let remaining = extra;
     if (academic) remaining = Math.min(extra, academicTarget(deadline, start) - existing);
     if (subject === 'ucl') remaining = Math.min(extra, 120 + extra - existing);
-    if (business) remaining = Math.min(extra, recruitingMinutes - 180);
-    if (remaining < 30) continue;
+    if (business) remaining = Math.min(extra, workMinutes(tasks, isQuantApplication) - 180);
+    if (recruiting) remaining = Math.min(extra, 120 - workMinutes(tasks, task => isQuantApplication(task) && task.focused));
+    const minimum = recruiting ? 60 : 30;
+    if (remaining < minimum) continue;
     // Prefer business time. Urgent university work may also borrow lower-pressure coursework time.
     const donorSubjects = business ? ['quant_app'] : ['reach'];
     if (academic) donorSubjects.push('quant_app');
@@ -449,9 +470,11 @@ function focusChangedDeadlines(tasks, state, deadlineRows, start) {
       && !isFinished(state, deadline.id, task.date) && task.assessment !== deadline.id && donorSubjects.includes(task.subject))
       .sort((a, b) => donorSubjects.indexOf(a.subject) - donorSubjects.indexOf(b.subject) || b.date.localeCompare(a.date));
     for (const donor of donors) {
-      if (remaining < 30) break;
-      const length = Math.min(duration(donor), remaining);
+      if (remaining < minimum) break;
+      if (recruiting && (duration(donor) < 60 || workMinutes(tasks, task => task.date === donor.date && isQuantApplication(task)))) continue;
+      const length = recruiting ? 60 : Math.min(duration(donor), remaining);
       const replacement = {...reallocate(donor, subject, deadline.id), focused: true};
+      if (recruiting) replacement.title = deadline.title;
       tasks = tasks.flatMap(task => task === donor ? takeMinutes(task, length, replacement) : [task]);
       remaining -= length;
     }
@@ -466,8 +489,8 @@ function plannedWeek(start, state) {
   const dates = Array.from({length: 7}, (_, index) => addDays(start, index));
   let tasks = dates.flatMap(date => placeSavedTasks(baseDay(date, state, deadlineRows, byId),
     saved.get(date)?.filter(task => task.preserveBeforeAllocation)));
-  tasks = releaseCompletedSlots(tasks, state, deadlineRows, byId, start);
   tasks = ensureRecruitingBlock(tasks, state, start);
+  tasks = releaseCompletedSlots(tasks, state, deadlineRows, byId, start);
   tasks = focusChangedDeadlines(tasks, state, deadlineRows, start);
   const byDate = new Map(dates.map(date => [date, []]));
   for (const task of tasks) byDate.get(task.date).push(task);
@@ -487,7 +510,8 @@ export function presentSession(task, state) {
   const blocked = !!task.requiresEthics && (!state.ethics?.approved || task.date < (state.ethics.date || '0000'));
   if (!simple) return {...task, blocked};
   const {checkpointId, continuation, plannedObjective, practicalTitle, preserveBeforeAllocation, ...session} = task;
-  return {...session, title: state.overrides?.[task.id]?.title || LABELS[task.subject], detail: '', success: '', blocked};
+  const title = task.subject === 'quant_app' && task.focused ? task.title : LABELS[task.subject];
+  return {...session, title: state.overrides?.[task.id]?.title || title, detail: '', success: '', blocked};
 }
 
 export function dayPlan(date, state, planned = rawDay(date, state)) {

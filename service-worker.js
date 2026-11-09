@@ -1,5 +1,5 @@
 /* Change VERSION with every release that changes app files. Progress uses localStorage, never this cache. */
-const VERSION='1.2.1';
+const VERSION='1.2.2';
 const PREFIX='my-plan-app-'+encodeURIComponent(new URL(self.registration.scope).pathname)+'-';
 const CACHE=PREFIX+VERSION;
 const FILES=['./','./index.html','./styles.css','./app.js','./engine.js','./storage.js','./progress.js','./exports.js','./data.js','./manifest.webmanifest','./icon.svg','./icon-192.png','./icon-512.png','./icon-maskable.png'];
